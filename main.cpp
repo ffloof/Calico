@@ -11,8 +11,9 @@ board* unrollMoveStr(board* b,std::string remainingMoves){
 } 
 
 int main(){
+    initZobrists();
     initPSQT();
-
+    
     std::string line;
     board uciBoard = newBoard(); 
 

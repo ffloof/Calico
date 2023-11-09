@@ -3,6 +3,27 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include <random>
+
+unsigned long long zobrist[13][128];
+unsigned long long zobristEP[128];
+unsigned long long zobristSTM[2];
+
+void initZobrists(){
+    std::random_device rd;
+    std::mt19937_64 mt(rd());
+    std::uniform_int_distribution<uint64_t> dist;
+
+    for(int x=0;x<13;x++){
+        if (x==6) continue;
+        for(int y=0;y<128;y++){
+            zobrist[x][y] = dist(mt);
+        }
+    }
+
+    for(int y=0;y<128;y++) zobristEP[y] = dist(mt);
+    for(int y=0;y<2;y++) zobristSTM[y] = dist(mt);
+}
 
 const int color[2] = {-1,1};
 const int N = -16, S = 16, W = -1, E = 1;
@@ -80,6 +101,7 @@ struct board {
     int8_t squares[128];
     int kings[2]; 
     int enpassant;
+    unsigned long long hash;
     bool shortCastle[2];
     bool longCastle[2];
     bool whiteToMove;
@@ -210,7 +232,15 @@ struct board {
         return false;
     }
 
+    unsigned long long getHash(){
+        return (hash ^ zobristEP[enpassant] ^ zobristSTM[whiteToMove]);
+    }
+
     void edit(int index, int8_t piece){
+        int8_t oldPiece = squares[index];
+        if (oldPiece != EMPTY) hash ^= zobrist[oldPiece+6][index];
+        if (piece != EMPTY) hash ^= zobrist[piece+6][index];
+        
         squares[index] = piece;
     }
 
@@ -220,6 +250,7 @@ struct board {
             if (i == enpassant && enpassant != 0) std::cout << "-";
             else if (i%16 < 8) std::cout << pieceToChar(squares[i]);
         }
+        std::cout << getHash() << std::endl;
     }
 };
 
@@ -352,12 +383,9 @@ board newBoard(std::string fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ
 
     std::string epstr = beforeWord(afterWord(afterWord(details, " "), " "), " ");
 
-    if (epstr != "-" && epstr != "" && epstr != " "){
-        b.enpassant = strToSquare(epstr);
-    }
+    if (epstr != "-" && epstr != "" && epstr != " ") b.enpassant = strToSquare(epstr);
 
     return b;
-
 }
 
 int perft(board* b, int depth){
