@@ -18,13 +18,13 @@ std::string squareToStr(int n){
     if (!valid(n)) return "--";
     int rank = n >> 4;
     int file = n & 7;    
-    return {char('a'+file),char('1'+rank)};
+    return {char('a'+(7-file)),char('1'+rank)};
 }
 
 int strToSquare(std::string str){
     int file = str[0] - 'a';
-    int rank = str[1] - '1';
-    return (rank << 4) & file;
+    int rank = 7-(str[1] - '1');
+    return (rank << 4) | file;
 }
 
 char pieceToChar(int8_t piece){
@@ -37,15 +37,29 @@ int8_t charToPiece(char c){
         {'P', PAWN}, {'N', KNIGHT}, {'B', BISHOP}, {'R', ROOK}, {'Q', QUEEN}, {'K',KING},
         {'p',-PAWN}, {'n',-KNIGHT}, {'b',-BISHOP}, {'r',-ROOK}, {'q',-QUEEN}, {'k',-KING}
     };
-    return convert.at(c);
+
+    if (convert.count(c)) return convert.at(c);
+    return EMPTY;
 }
 
-char promoToChar(){
+std::string promoToStr(int n){
+    const std::map<int, std::string> convert = {
+        {PROMOTEQUEEN, "q"}, {PROMOTEROOK, "r"}, {PROMOTEBISHOP, "b"}, {PROMOTEKNIGHT, "n"}
+    };
 
+    if (convert.count(n)) return convert.at(n);
+    return "";
 }
 
-int8_t charToPromo(){
-    
+int8_t charToPromo(char c){
+    const std::map<char, int8_t> convert = {
+        {'q', PROMOTEQUEEN}, {'r',PROMOTEROOK}, {'b', PROMOTEBISHOP}, {'n', PROMOTEKNIGHT}
+    };
+
+    if (convert.count(c)) {
+        return convert.at(c);
+    }
+    return BASIC;
 }
 
 
@@ -57,6 +71,7 @@ struct move {
     void print(){
         std::cout << squareToStr(start); 
         std::cout << squareToStr(end);
+        std::cout << promoToStr(flag);
         std::cout << std::endl;
     }
 };
@@ -188,12 +203,8 @@ struct board {
         for (int direction: pattern) {
             for (int end = start + direction; valid(end); end += direction) {
                 int8_t piece = squares[end];
-                if (piece == find) {
-                    return true;
-                }
-                if (!ray || piece != 0) {
-                    break;
-                }
+                if (piece == find) return true;
+                if (!ray || piece != 0) break;
             }
         }
         return false;
@@ -206,7 +217,8 @@ struct board {
     void print(){
         for (int i=0;i<128;i++){
             if (i%16 == 15) std::cout << std::endl;
-            if (i%16 < 8) std::cout << pieceToChar(squares[i]);
+            if (i == enpassant && enpassant != 0) std::cout << "-";
+            else if (i%16 < 8) std::cout << pieceToChar(squares[i]);
         }
     }
 };
@@ -280,21 +292,31 @@ board* apply(board* oldBoard, move m){
     return cBoard;   
 }
 
+std::string trim(std::string str){
+    size_t firstNonSpace = str.find_first_not_of(' ');
+    size_t lastNonSpace = str.find_last_not_of(' ');
+    if (firstNonSpace != std::string::npos && lastNonSpace != std::string::npos) {
+        return str.substr(firstNonSpace, lastNonSpace - firstNonSpace + 1);
+    }
+    return "";
+}
+
 std::string beforeWord(std::string str, std::string word) {
     size_t found = str.find(word);
     if (found != std::string::npos) {
-        return str.substr(0, found);
+        return trim(str.substr(0, found));
     }
-    return str.substr(0, str.length());
+    return trim(str.substr(0, str.length()));
 }
 
 std::string afterWord(std::string str, std::string word) {
     size_t found = str.find(word);
     if (found != std::string::npos) {
-        return str.substr(found + word.length());
+        return trim(str.substr(found + word.length()));
     }
     return "";
-}   
+}
+
 
 // TODO: make this a proper constructor
 board newBoard(std::string fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") {
@@ -328,6 +350,12 @@ board newBoard(std::string fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ
 
     // TODO: enpassant! halfmove clock?
 
+    std::string epstr = beforeWord(afterWord(afterWord(details, " "), " "), " ");
+
+    if (epstr != "-" && epstr != "" && epstr != " "){
+        b.enpassant = strToSquare(epstr);
+    }
+
     return b;
 
 }
@@ -345,4 +373,25 @@ int perft(board* b, int depth){
     }
 
     return nodes;
+}
+
+board* applyMoveStr(board* b, std::string moveStr){
+    if(moveStr.length() < 4) return nullptr;
+    int8_t start = strToSquare(moveStr.substr(0,2));
+    int8_t end = strToSquare(moveStr.substr(2,4));
+    int8_t flag = BASIC;
+    if(moveStr.length() == 5) flag = charToPromo(moveStr[4]);
+
+    int8_t piece = abs(b->squares[start]);
+
+    if(piece == KING) {
+        if (end - start == W + W) flag = CASTLELONG;
+        if (end - start == E + E) flag = CASTLESHORT;
+    }
+
+    if(piece == PAWN){
+        if (abs(end-start) == (2 * S)) flag = DOUBLEPUSH;
+        else if (abs(end-start) != S && b->squares[end] == EMPTY) flag = ENPASSANT;
+    }
+    return apply(b, move{start,end,flag});
 }

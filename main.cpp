@@ -4,6 +4,12 @@
 #include <iostream>
 #include <chrono>
 
+board* unrollMoveStr(board* b,std::string remainingMoves){
+    if (remainingMoves == "") return b;
+    b = applyMoveStr(b, beforeWord(remainingMoves, " "));
+    return unrollMoveStr(b, afterWord(remainingMoves, " "));
+} 
+
 int main(){
     std::string line;
     board uciBoard = newBoard(); 
@@ -26,7 +32,12 @@ int main(){
             auto t2 = std::chrono::high_resolution_clock::now();
             std::cout << (std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1)).count() << std::endl;
         } else if (command == "position") {
-            
+            if (beforeWord(arguments, "moves") == "startpos"){
+                uciBoard = newBoard();
+            } else {
+                uciBoard = newBoard(afterWord(beforeWord(arguments, "moves"), " "));
+            }
+            uciBoard = *(unrollMoveStr(&uciBoard, afterWord(arguments, "moves")));
         } else if (command == "go") {
             int totalTime;
             if (uciBoard.whiteToMove) totalTime = std::stoi(beforeWord(afterWord(arguments, "wtime"), " "));
