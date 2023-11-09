@@ -1,18 +1,40 @@
-#include "chess/board.h"
+#include "chess/board.cpp"
+#include "chess/eval.cpp"
+#include "chess/search.cpp"
 #include <iostream>
 #include <chrono>
 
 int main(){
-    printf("Calico!\n");
-    board perfBoard = newBoard();
-    
+    std::string line;
+    board uciBoard = newBoard(); 
 
-    perfBoard.GeneratesMoves();
-    auto t1 = std::chrono::high_resolution_clock::now();
-    std::cout << perft(&perfBoard, 6) << std::endl;
-    auto t2 = std::chrono::high_resolution_clock::now();
-    auto ms_int = (std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1)).count();
+    while (std::getline(std::cin, line)) {
+        std::string command = beforeWord(line, " ");
+        std::string arguments = afterWord(line, " ");
 
-    std::cout << ms_int << std::endl;
+        if (command=="uci"){
+            std::cout << "id name calico" << std::endl;
+            std::cout << "id author ffloof" << std::endl;
+            std::cout << "uciok" << std::endl;
+        } else if (command == "isready") {
+            std::cout << "readyok";
+        } else if (command == "print") {
+            uciBoard.print();
+        } else if (command == "perft") {
+            auto t1 = std::chrono::high_resolution_clock::now();
+            std::cout << perft(&uciBoard, std::stoi(arguments)) << std::endl;
+            auto t2 = std::chrono::high_resolution_clock::now();
+            std::cout << (std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1)).count() << std::endl;
+        } else if (command == "position") {
+            
+        } else if (command == "go") {
+            int totalTime;
+            if (uciBoard.whiteToMove) totalTime = std::stoi(beforeWord(afterWord(arguments, "wtime"), " "));
+            else totalTime = std::stoi(beforeWord(afterWord(arguments, "btime"), " "));
+            move chosenMove = iterativeSearch(&uciBoard, totalTime/30);
+            std::cout << "bestmove";
+            chosenMove.print();
+        }
+    }    
 }
 
