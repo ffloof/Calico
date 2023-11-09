@@ -43,7 +43,7 @@ int main(){
             if (uciBoard.whiteToMove) totalTime = std::stoi(beforeWord(afterWord(arguments, "wtime"), " "));
             else totalTime = std::stoi(beforeWord(afterWord(arguments, "btime"), " "));
             move chosenMove = iterativeSearch(&uciBoard, totalTime/30);
-            std::cout << "bestmove";
+            std::cout << "bestmove ";
             chosenMove.print();
         }
     }    

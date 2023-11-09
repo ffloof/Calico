@@ -18,7 +18,7 @@ std::string squareToStr(int n){
     if (!valid(n)) return "--";
     int rank = n >> 4;
     int file = n & 7;    
-    return {char('a'+(7-file)),char('1'+rank)};
+    return {char('a'+file),char('1'+(7-rank))};
 }
 
 int strToSquare(std::string str){
