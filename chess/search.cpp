@@ -3,20 +3,97 @@
 
 // TODO: define constants for everything
 
+int qsearch(board* b, int alpha, int beta) {
+    int standpat = evaluate(b);
+    if (standpat > alpha) {
+        alpha = standpat;
+        if (alpha >= beta) {
+            return alpha;
+        }
+    }
+    
+    std::vector<move> moves = b->GeneratesMoves(true);
+    std::vector<int> priorities(moves.size());
+
+    for (int i=0;i<moves.size();i++){
+        move m = moves[i];
+        priorities[i] = (abs(b->squares[m.end]) * 8) - abs(b->squares[m.start]) + 10;
+    }
+
+    int legals = 0;
+    int bestScore = -10000;
+
+    for (int i=0;i<moves.size();i++){
+        int bestPriority = 0;
+        int bestIndex = 0;
+        for (int j=i;j<moves.size();j++){
+            if (priorities[j] > bestPriority) {
+                bestPriority = priorities[j];
+                bestIndex = j;
+            }
+        }
+
+        move m = moves[bestIndex];
+        std::swap(moves[i],moves[bestIndex]);
+        std::swap(priorities[i],priorities[bestIndex]);
+
+        board* nextBoard = apply(b,m);
+        if (nextBoard == nullptr) continue;
+        legals++;
+
+        int score = -qsearch(nextBoard, -beta, -alpha);
+        delete nextBoard;
+
+        if (score > alpha) {
+            alpha = score;
+            if (score >= beta) {
+                return score;
+            }
+        }
+    }
+
+    /* TODO: figure out how to handle check in qsearch
+    if (b->inCheck) return -10000;
+    return -69;
+    */
+    
+    return alpha;
+}
+
+
 int maxdepth = 0;
 move bestMove;
 
 int alphabeta(board* b, int alpha, int beta, int depth){
     if (depth <= 0) {
-        return evaluate(b);
+        return qsearch(b, alpha, beta);
     }
 
     std::vector<move> moves = b->GeneratesMoves();
+    std::vector<int> priorities(moves.size());
+
+    for (int i=0;i<moves.size();i++){
+        move m = moves[i];
+        priorities[i] = (abs(b->squares[m.end]) * 8) - abs(b->squares[m.start]) + 10;
+    }
 
     int legals = 0;
     int bestScore = -10000;
 
-    for (move m : moves) {
+    for (int i=0;i<moves.size();i++){
+        int bestPriority = 0;
+        int bestIndex = 0;
+        for (int j=i;j<moves.size();j++){
+            if (priorities[j] > bestPriority) {
+                bestPriority = priorities[j];
+                bestIndex = j;
+            }
+        }
+
+        move m = moves[bestIndex];
+        std::swap(moves[i],moves[bestIndex]);
+        std::swap(priorities[i],priorities[bestIndex]);
+
         board* nextBoard = apply(b,m);
         if (nextBoard == nullptr) continue;
         legals++;
@@ -38,7 +115,7 @@ int alphabeta(board* b, int alpha, int beta, int depth){
 
     if (legals == 0) {
         if (b->inCheck) return -10000;
-        return -69;
+        return -20;
     }
 
     return bestScore;
