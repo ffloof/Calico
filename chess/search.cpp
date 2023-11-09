@@ -7,9 +7,7 @@ int qsearch(board* b, int alpha, int beta) {
     int standpat = evaluate(b);
     if (standpat > alpha) {
         alpha = standpat;
-        if (alpha >= beta) {
-            return alpha;
-        }
+        if (alpha >= beta) return alpha;
     }
     
     std::vector<move> moves = b->GeneratesMoves(true);
@@ -62,7 +60,6 @@ int qsearch(board* b, int alpha, int beta) {
 
 
 int maxdepth = 0;
-move bestMove;
 
 int alphabeta(board* b, int alpha, int beta, int depth){
     if (depth <= 0) {
@@ -72,13 +69,21 @@ int alphabeta(board* b, int alpha, int beta, int depth){
     std::vector<move> moves = b->GeneratesMoves();
     std::vector<int> priorities(moves.size());
 
+    ttentry* tentry = tableget(b);
+    move tablemove;
+    if (tentry != nullptr) {
+        tablemove = tentry->tableMove;
+    }
+
     for (int i=0;i<moves.size();i++){
         move m = moves[i];
         priorities[i] = (abs(b->squares[m.end]) * 8) - abs(b->squares[m.start]) + 10;
+        if(m.start == tablemove.start && m.end == tablemove.end && m.flag == tablemove.flag) priorities[i] = 1000;
     }
 
     int legals = 0;
     int bestScore = -10000;
+    move bestMove;
 
     for (int i=0;i<moves.size();i++){
         int bestPriority = 0;
@@ -101,14 +106,16 @@ int alphabeta(board* b, int alpha, int beta, int depth){
         int score = -alphabeta(nextBoard, -beta, -alpha, depth-1);
         delete nextBoard;
 
-        if (score > alpha) {
-            alpha = score;
-            if (score > bestScore) {
-                bestScore = score;
-                if (depth == maxdepth) bestMove = m;
-            }
-            if (score >= beta) {
-                return score;
+        if (score > bestScore) {
+            bestScore = score;
+            bestMove = m;
+            if (score > alpha) {
+                alpha = score;
+                
+                if (score >= beta) {
+                    tableset(b, bestMove, depth, bestScore, 2);
+                    return score;
+                }
             }
         }
     }
@@ -118,6 +125,7 @@ int alphabeta(board* b, int alpha, int beta, int depth){
         return -20;
     }
 
+    tableset(b, bestMove, depth, bestScore, 2);
     return bestScore;
 }
 
@@ -133,5 +141,6 @@ move iterativeSearch(board* b, int timeAlloc) {
         if (time > timeAlloc) break;
     }
 
-    return bestMove;
+    ttentry* tentry = tableget(b);
+    return tentry->tableMove;
 }

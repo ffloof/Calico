@@ -1,4 +1,5 @@
 #include "chess/board.cpp"
+#include "chess/table.cpp"
 #include "chess/eval.cpp"
 #include "chess/search.cpp"
 #include <iostream>

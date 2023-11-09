@@ -1,0 +1,26 @@
+struct ttentry {
+    unsigned long long fullHash;
+    int16_t score;
+    int16_t depth; 
+    move tableMove;
+    int8_t bound;
+};
+
+const int8_t LOWERBOUND = -1, EXACT = 0, UPPERBOUND = 1;
+
+const int tsize = 100000000;
+
+ttentry ttable[100000000] = {};
+
+ttentry* tableget(board* b) {
+    unsigned long long key = b->getHash();
+    ttentry* e = &ttable[key % tsize];
+    if (e->fullHash == key) return e;
+    return nullptr;
+}
+
+void tableset(board* b, move m, int16_t depth, int16_t score, int8_t bound) {
+    unsigned long long key = b->getHash();
+    ttable[key % tsize] = ttentry{key, score, depth, m, bound};
+}
+
