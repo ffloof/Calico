@@ -9,7 +9,7 @@ board* unrollMoveStr(board* b,std::string remainingMoves){
     if (remainingMoves == "") return b;
     b = applyMoveStr(b, beforeWord(remainingMoves, " "));
     return unrollMoveStr(b, afterWord(remainingMoves, " "));
-} 
+}
 
 int main(){
     initZobrists();
@@ -50,6 +50,6 @@ int main(){
             std::cout << "bestmove ";
             chosenMove.print();
         }
-    }    
+    }
 }
 

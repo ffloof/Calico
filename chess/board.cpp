@@ -8,27 +8,30 @@
 unsigned long long zobrist[13][128];
 unsigned long long zobristEP[128];
 unsigned long long zobristSTM[2];
+unsigned long long zobristCastleS[2][2];
+unsigned long long zobristCastleL[2][2];
 
 void initZobrists(){
     std::random_device rd;
     std::mt19937_64 mt(rd());
-    std::uniform_int_distribution<uint64_t> dist;
+    std::uniform_int_distribution<uint64_t> rng;
 
     for(int x=0;x<13;x++){
-        if (x==6) continue;
-        for(int y=0;y<128;y++){
-            zobrist[x][y] = dist(mt);
-        }
+        for(int y=0;y<128;y++) zobrist[x][y] = rng(mt);
     }
 
-    for(int y=0;y<128;y++) zobristEP[y] = dist(mt);
-    for(int y=0;y<2;y++) zobristSTM[y] = dist(mt);
+    for(int y=0;y<128;y++) zobristEP[y] = rng(mt);
+    for(int y=0;y<2;y++) zobristSTM[y] = rng(mt);
+
+    for(int x=0;x<2;x++) {
+        for(int y=0;y<2;y++) zobristCastleS[y][x] = rng(mt);
+        for(int y=0;y<2;y++) zobristCastleL[y][x] = rng(mt);
+    }
 }
 
 const int color[2] = {-1,1};
 const int N = -16, S = 16, W = -1, E = 1;
 const int8_t EMPTY = 0, PAWN = 1, KNIGHT = 2, BISHOP = 3, ROOK = 4, QUEEN = 5, KING = 6;
-const int8_t BASIC = 0, CASTLELONG = 1, CASTLESHORT = 2, DOUBLEPUSH = 3, ENPASSANT = 4, NULLMOVE = 5, PROMOTEQUEEN = 6, PROMOTEROOK = 7, PROMOTEBISHOP = 8, PROMOTEKNIGHT = 9;
 const int A8 = 0, H8 = 7, A1 = 112, H1 = 119; 
 
 bool valid(int index) {
@@ -63,27 +66,6 @@ int8_t charToPiece(char c){
     return EMPTY;
 }
 
-std::string promoToStr(int n){
-    const std::map<int, std::string> convert = {
-        {PROMOTEQUEEN, "q"}, {PROMOTEROOK, "r"}, {PROMOTEBISHOP, "b"}, {PROMOTEKNIGHT, "n"}
-    };
-
-    if (convert.count(n)) return convert.at(n);
-    return "";
-}
-
-int8_t charToPromo(char c){
-    const std::map<char, int8_t> convert = {
-        {'q', PROMOTEQUEEN}, {'r',PROMOTEROOK}, {'b', PROMOTEBISHOP}, {'n', PROMOTEKNIGHT}
-    };
-
-    if (convert.count(c)) {
-        return convert.at(c);
-    }
-    return BASIC;
-}
-
-
 struct move {
     int8_t start;
     int8_t end;
@@ -92,7 +74,7 @@ struct move {
     void print(){
         std::cout << squareToStr(start); 
         std::cout << squareToStr(end);
-        std::cout << promoToStr(flag);
+        if (flag != EMPTY) std::cout << pieceToChar(-flag);
         std::cout << std::endl;
     }
 };
@@ -124,7 +106,7 @@ struct board {
                     if (squares[i+advance] == EMPTY) {
                         addPawnMove(&moves, i, i+advance, capturesOnly);
                         if (squares[i+advance+advance] == EMPTY && isHomeRow(i)) {
-                            addMove(&moves, i, i+advance+advance, capturesOnly, DOUBLEPUSH);
+                            addMove(&moves, i, i+advance+advance, capturesOnly);
                         }
                     }
                     break;
@@ -149,7 +131,7 @@ struct board {
         if (enpassant != 0) {
             for (int8_t origin : std::vector<int>{enpassant-advance+W, enpassant-advance+E}) {
                 if (squares[origin] == PAWN * color[whiteToMove]) {
-                    addMove(&moves, origin, enpassant, capturesOnly, ENPASSANT);
+                    addMove(&moves, origin, enpassant, capturesOnly);
                 }
             }
         }
@@ -161,10 +143,10 @@ struct board {
 
         if (!capturesOnly && !inCheck) {
             if (canShortCastle && squares[kingIdx + E] == EMPTY && squares[kingIdx + E + E] == EMPTY && !attacked(kingIdx + E) && !attacked(kingIdx + E + E)) {
-                addMove(&moves, kingIdx, kingIdx+E+E, false, CASTLESHORT);
+                addMove(&moves, kingIdx, kingIdx+E+E, false);
             }
             if (canLongCastle && squares[kingIdx + W] == EMPTY && squares[kingIdx + W + W] == EMPTY && squares[kingIdx + W + W + W] == EMPTY && !attacked(kingIdx + W) && !attacked(kingIdx + W + W)) {
-                addMove(&moves, kingIdx, kingIdx+W+W, false, CASTLELONG);
+                addMove(&moves, kingIdx, kingIdx+W+W, false);
             }
         }
 
@@ -182,14 +164,14 @@ struct board {
 
     void addPawnMove(std::vector<move>* moves, int start, int end, bool capturesOnly) {
         if (isPromotionRow(end)) {
-            for (int8_t promotion : std::vector<int8_t>{PROMOTEQUEEN, PROMOTEROOK, PROMOTEKNIGHT, PROMOTEBISHOP}) 
+            for (int8_t promotion : std::vector<int8_t>{QUEEN, ROOK, KNIGHT, BISHOP}) 
                 addMove(moves, start, end, capturesOnly, promotion);
             return;
         }
         addMove(moves, start, end, capturesOnly);
     }
 
-    void addMove(std::vector<move>* moves, int8_t start, int8_t end, bool capturesOnly, int8_t flag=BASIC) {
+    void addMove(std::vector<move>* moves, int8_t start, int8_t end, bool capturesOnly, int8_t flag=EMPTY) {
         if (!valid(end)) return;
         if (capturesOnly && squares[end] == EMPTY) return;
         if (squares[start] * squares[end] > 0) return;
@@ -233,7 +215,9 @@ struct board {
     }
 
     unsigned long long getHash(){
-        return (hash ^ zobristEP[enpassant] ^ zobristSTM[whiteToMove]);
+        // We add to the hash the sidetomove, enpassant, and castling rights
+        // You could also try to keep these updated incrementally but I am too lazy
+        return (hash ^ zobristEP[enpassant] ^ zobristSTM[whiteToMove] ^ zobristCastleS[0][shortCastle[0]] ^ zobristCastleS[1][shortCastle[1]] ^ zobristCastleL[0][longCastle[0]] ^ zobristCastleL[1][longCastle[1]]);
     }
 
     void edit(int index, int8_t piece){
@@ -265,48 +249,40 @@ board* apply(board* oldBoard, move m){
 
     int8_t movingPiece = cBoard->squares[m.start];
 
+    bool isWhite = cBoard->whiteToMove;
+    cBoard->enpassant = 0;
+    if (abs(movingPiece) == PAWN) {
+        if (abs(m.end-m.start) == (2 * S)) {
+            // DOUBLE PUSH
+            cBoard->enpassant = m.end + (S*color[isWhite]);
+        }else if (abs(m.end-m.start) != S && cBoard->squares[m.end] == EMPTY) {
+            // EN PASSANT
+            cBoard->edit(m.end + (S*color[isWhite]), EMPTY);
+        }
+    }
+
     cBoard->edit(m.end, movingPiece);
     cBoard->edit(m.start, EMPTY);
-
-    bool isWhite = cBoard->whiteToMove;
 
     if (abs(movingPiece) == KING) {
         cBoard->kings[isWhite] = m.end;
         cBoard->longCastle[isWhite] = false;
         cBoard->shortCastle[isWhite] = false;
+        if (m.end - m.start == W + W) {
+            //CASTLE LONG
+            cBoard->edit(m.end + W + W, EMPTY);
+            cBoard->edit(m.end + E, ROOK*color[isWhite]);
+        }
+        if (m.end - m.start == E + E) {
+            //CASTLE SHORT
+            cBoard->edit(m.end + E, EMPTY);
+            cBoard->edit(m.end + W, ROOK*color[isWhite]);
+        }
     }
 
-    cBoard->enpassant = 0;
-
-    if (m.flag != 0) {
-        switch (m.flag) {
-            case PROMOTEKNIGHT:
-                cBoard->edit(m.end, KNIGHT * color[isWhite]);
-                break;
-            case PROMOTEBISHOP:
-                cBoard->edit(m.end, BISHOP * color[isWhite]);
-                break;
-            case PROMOTEROOK:
-                cBoard->edit(m.end, ROOK * color[isWhite]);
-                break;
-            case PROMOTEQUEEN:
-                cBoard->edit(m.end, QUEEN * color[isWhite]);
-                break;
-            case ENPASSANT:
-                cBoard->edit(m.end + (S*color[isWhite]), EMPTY);
-                break;
-            case DOUBLEPUSH:
-                cBoard->enpassant = m.end + (S*color[isWhite]);
-                break;
-            case CASTLESHORT:
-                cBoard->edit(m.end + E, EMPTY);
-                cBoard->edit(m.end + W, ROOK*color[isWhite]);
-                break;
-            case CASTLELONG:
-                cBoard->edit(m.end + W + W, EMPTY);
-                cBoard->edit(m.end + E, ROOK*color[isWhite]);
-                break;
-        }
+    // TODO: rename flag to something more descriptive like promoflag
+    if (m.flag != EMPTY) {
+        cBoard->edit(m.end, m.flag * color[isWhite]);
     }
 
     if (cBoard->attacked(cBoard->kings[isWhite])) {
@@ -347,7 +323,6 @@ std::string afterWord(std::string str, std::string word) {
     }
     return "";
 }
-
 
 // TODO: make this a proper constructor
 board newBoard(std::string fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") {
@@ -407,11 +382,12 @@ board* applyMoveStr(board* b, std::string moveStr){
     if(moveStr.length() < 4) return nullptr;
     int8_t start = strToSquare(moveStr.substr(0,2));
     int8_t end = strToSquare(moveStr.substr(2,4));
-    int8_t flag = BASIC;
-    if(moveStr.length() == 5) flag = charToPromo(moveStr[4]);
+    int8_t flag = EMPTY;
+    if(moveStr.length() == 5) flag = abs(charToPiece(moveStr[4]));
 
     int8_t piece = abs(b->squares[start]);
 
+    /*
     if(piece == KING) {
         if (end - start == W + W) flag = CASTLELONG;
         if (end - start == E + E) flag = CASTLESHORT;
@@ -420,6 +396,6 @@ board* applyMoveStr(board* b, std::string moveStr){
     if(piece == PAWN){
         if (abs(end-start) == (2 * S)) flag = DOUBLEPUSH;
         else if (abs(end-start) != S && b->squares[end] == EMPTY) flag = ENPASSANT;
-    }
+    }*/
     return apply(b, move{start,end,flag});
 }
