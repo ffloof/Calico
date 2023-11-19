@@ -8,9 +8,9 @@ struct ttentry {
 
 const int8_t LOWERBOUND = -1, EXACT = 0, UPPERBOUND = 1;
 
-const int tsize = 100000000;
+const int tsize = 10000000;
 
-ttentry ttable[100000000] = {};
+ttentry ttable[10000000] = {};
 
 ttentry* tableget(board* b) {
     unsigned long long key = b->getHash();

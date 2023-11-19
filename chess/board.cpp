@@ -353,13 +353,11 @@ board newBoard(std::string fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ
     b.shortCastle[0] = rights.find("k") != std::string::npos;
     b.longCastle[1] = rights.find("Q") != std::string::npos;
     b.longCastle[0] = rights.find("q") != std::string::npos;
-
-    // TODO: enpassant! halfmove clock?
-
+    
     std::string epstr = beforeWord(afterWord(afterWord(details, " "), " "), " ");
-
     if (epstr != "-" && epstr != "" && epstr != " ") b.enpassant = strToSquare(epstr);
 
+    // TODO: halfmove clock?
     return b;
 }
 
@@ -384,18 +382,8 @@ board* applyMoveStr(board* b, std::string moveStr){
     int8_t end = strToSquare(moveStr.substr(2,4));
     int8_t flag = EMPTY;
     if(moveStr.length() == 5) flag = abs(charToPiece(moveStr[4]));
-
-    int8_t piece = abs(b->squares[start]);
-
-    /*
-    if(piece == KING) {
-        if (end - start == W + W) flag = CASTLELONG;
-        if (end - start == E + E) flag = CASTLESHORT;
-    }
-
-    if(piece == PAWN){
-        if (abs(end-start) == (2 * S)) flag = DOUBLEPUSH;
-        else if (abs(end-start) != S && b->squares[end] == EMPTY) flag = ENPASSANT;
-    }*/
     return apply(b, move{start,end,flag});
 }
+
+move NULLMOVE = move{0,0,0};
+ 

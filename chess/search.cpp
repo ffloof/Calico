@@ -3,6 +3,8 @@
 
 // TODO: define constants for everything
 
+std::vector<unsigned long long> repetition(0); 
+
 int qsearch(board* b, int alpha, int beta) {
     int standpat = evaluate(b);
     if (standpat > alpha) {
@@ -44,9 +46,7 @@ int qsearch(board* b, int alpha, int beta) {
 
         if (score > alpha) {
             alpha = score;
-            if (score >= beta) {
-                return score;
-            }
+            if (score >= beta) break;
         }
     }
 
@@ -69,7 +69,14 @@ int alphabeta(board* b, int alpha, int beta, int depth){
     std::vector<move> moves = b->GeneratesMoves();
     std::vector<int> priorities(moves.size());
 
-    ttentry* tentry = tableget(b);
+    unsigned long long hash = b->getHash();
+    for (unsigned long long h : repetition) {
+        if(hash == h) return -20;
+    }
+
+    repetition.push_back(hash);
+
+    ttentry* tentry = tableget(b); // TODO: get from hash
     move tablemove;
     if (tentry != nullptr) {
         tablemove = tentry->tableMove;
@@ -111,21 +118,19 @@ int alphabeta(board* b, int alpha, int beta, int depth){
             bestMove = m;
             if (score > alpha) {
                 alpha = score;
-                
-                if (score >= beta) {
-                    tableset(b, bestMove, depth, bestScore, 2);
-                    return score;
-                }
+                if (score >= beta) break;
             }
         }
     }
 
+    repetition.pop_back();
+    tableset(b, bestMove, depth, bestScore, 2);
     if (legals == 0) {
         if (b->inCheck) return -10000;
         return -20;
     }
 
-    tableset(b, bestMove, depth, bestScore, 2);
+        
     return bestScore;
 }
 
