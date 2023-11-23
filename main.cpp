@@ -4,6 +4,7 @@
 #include "chess/search.cpp"
 #include <iostream>
 #include <chrono>
+#include <fstream>
 
 board* unrollMoveStr(board* b,std::string remainingMoves){
     if (remainingMoves == "") return b;
@@ -18,16 +19,24 @@ int main(){
     std::string line;
     board uciBoard = newBoard(); 
 
+    std::ofstream outputFile("inputlog.txt");
+    outputFile << "START" << std::endl;
+
     while (std::getline(std::cin, line)) {
+        outputFile << line << std::endl;
         std::string command = beforeWord(line, " ");
         std::string arguments = afterWord(line, " ");
 
         if (command=="uci"){
-            std::cout << "id name calico" << std::endl;
+            std::cout << "id name Calico" << std::endl;
             std::cout << "id author ffloof" << std::endl;
+            std::cout << "option name Threads type spin default 1 min 1 max 1" << std::endl;
+            std::cout << "option name Hash type spin default 1 min 1 max 1" << std::endl;
             std::cout << "uciok" << std::endl;
         } else if (command == "isready") {
-            std::cout << "readyok";
+            std::cout << "readyok" << std::endl;
+        } else if (command == "quit") {
+            return 0;
         } else if (command == "print") {
             uciBoard.print();
         } else if (command == "perft") {
@@ -44,8 +53,16 @@ int main(){
             uciBoard = *(unrollMoveStr(&uciBoard, afterWord(arguments, "moves")));
         } else if (command == "go") {
             int totalTime;
-            if (uciBoard.whiteToMove) totalTime = std::stoi(beforeWord(afterWord(arguments, "wtime"), " "));
-            else totalTime = std::stoi(beforeWord(afterWord(arguments, "btime"), " "));
+            try {
+                if (uciBoard.whiteToMove) totalTime = std::stoi(beforeWord(afterWord(arguments, "wtime"), " "));
+                else totalTime = std::stoi(beforeWord(afterWord(arguments, "btime"), " "));
+            } catch(const std::invalid_argument& e) {
+                try {
+                    totalTime = std::stoi(beforeWord(afterWord(arguments, "movetime"), " ")) * 30;
+                } catch(const std::invalid_argument& e) {
+                    totalTime = 10000*30;
+                }
+            }
             move chosenMove = iterativeSearch(&uciBoard, totalTime/30);
             std::cout << "bestmove ";
             chosenMove.print();

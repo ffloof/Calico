@@ -12,8 +12,7 @@ const int tsize = 10000000;
 
 ttentry ttable[10000000] = {};
 
-ttentry* tableget(board* b) {
-    unsigned long long key = b->getHash();
+ttentry* tableget(unsigned long long key) {
     ttentry* e = &ttable[key % tsize];
     if (e->fullHash == key) return e;
     return nullptr;

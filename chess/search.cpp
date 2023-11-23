@@ -1,9 +1,7 @@
 #include <vector>
 #include <chrono>
 
-// TODO: define constants for everything
-
-std::vector<unsigned long long> repetition(0); 
+// TODO: define constants for things like mate
 
 int qsearch(board* b, int alpha, int beta) {
     int standpat = evaluate(b);
@@ -58,94 +56,115 @@ int qsearch(board* b, int alpha, int beta) {
     return alpha;
 }
 
+struct searcher {
+    int nodes;
+    int ply;
+    unsigned long long repetition[255];
+    double timeAlloc;
+    // TODO: add evals here
+    // TODO: add history heuristic here
 
-int maxdepth = 0;
-
-int alphabeta(board* b, int alpha, int beta, int depth){
-    if (depth <= 0) {
-        return qsearch(b, alpha, beta);
+    void push(unsigned long long hash){
+        repetition[ply] = hash;
+        nodes++;
+        ply += 1;
     }
 
-    std::vector<move> moves = b->GeneratesMoves();
-    std::vector<int> priorities(moves.size());
-
-    unsigned long long hash = b->getHash();
-    for (unsigned long long h : repetition) {
-        if(hash == h) return -20;
+    void pop(){
+        ply -= 1;
     }
 
-    repetition.push_back(hash);
-
-    ttentry* tentry = tableget(b); // TODO: get from hash
-    move tablemove;
-    if (tentry != nullptr) {
-        tablemove = tentry->tableMove;
+    bool isRepetition(unsigned long long hash){
+        for(int i=0;i<ply;i++){
+            if (repetition[i] == hash) return true;
+        }
+        return false;
     }
 
-    for (int i=0;i<moves.size();i++){
-        move m = moves[i];
-        priorities[i] = (abs(b->squares[m.end]) * 8) - abs(b->squares[m.start]) + 10;
-        if(m.start == tablemove.start && m.end == tablemove.end && m.flag == tablemove.flag) priorities[i] = 1000;
-    }
+    int alphabeta(board* b, int alpha, int beta, int depth){
+        if (depth <= 0) {
+            return qsearch(b, alpha, beta);
+        }
 
-    int legals = 0;
-    int bestScore = -10000;
-    move bestMove;
+        std::vector<move> moves = b->GeneratesMoves();
+        std::vector<int> priorities(moves.size());
 
-    for (int i=0;i<moves.size();i++){
-        int bestPriority = 0;
-        int bestIndex = 0;
-        for (int j=i;j<moves.size();j++){
-            if (priorities[j] > bestPriority) {
-                bestPriority = priorities[j];
-                bestIndex = j;
+        unsigned long long hash = b->getHash();
+
+        if (isRepetition(hash)) return -20;
+        push(hash);
+
+        ttentry* tentry = tableget(hash);
+        move tablemove;
+        if (tentry != nullptr) {
+            tablemove = tentry->tableMove;
+        }
+
+        for (int i=0;i<moves.size();i++){
+            move m = moves[i];
+            priorities[i] = (abs(b->squares[m.end]) * 8) - abs(b->squares[m.start]) + 10;
+            if(m.start == tablemove.start && m.end == tablemove.end && m.flag == tablemove.flag) priorities[i] = 1000;
+        }
+
+        int legals = 0;
+        int bestScore = -10000;
+        move bestMove;
+
+        for (int i=0;i<moves.size();i++){
+            int bestPriority = 0;
+            int bestIndex = 0;
+            for (int j=i;j<moves.size();j++){
+                if (priorities[j] > bestPriority) {
+                    bestPriority = priorities[j];
+                    bestIndex = j;
+                }
+            }
+
+            move m = moves[bestIndex];
+            std::swap(moves[i],moves[bestIndex]);
+            std::swap(priorities[i],priorities[bestIndex]);
+
+            board* nextBoard = apply(b,m);
+            if (nextBoard == nullptr) continue;
+            legals++;
+
+            int score = -alphabeta(nextBoard, -beta, -alpha, depth-1);
+            delete nextBoard;
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = m;
+                if (score > alpha) {
+                    alpha = score;
+                    if (score >= beta) break;
+                }
             }
         }
 
-        move m = moves[bestIndex];
-        std::swap(moves[i],moves[bestIndex]);
-        std::swap(priorities[i],priorities[bestIndex]);
-
-        board* nextBoard = apply(b,m);
-        if (nextBoard == nullptr) continue;
-        legals++;
-
-        int score = -alphabeta(nextBoard, -beta, -alpha, depth-1);
-        delete nextBoard;
-
-        if (score > bestScore) {
-            bestScore = score;
-            bestMove = m;
-            if (score > alpha) {
-                alpha = score;
-                if (score >= beta) break;
-            }
+        pop();
+        tableset(b, bestMove, depth, bestScore, 2);
+        if (legals == 0) {
+            if (b->inCheck) return -10000;
+            return -20;
         }
-    }
 
-    repetition.pop_back();
-    tableset(b, bestMove, depth, bestScore, 2);
-    if (legals == 0) {
-        if (b->inCheck) return -10000;
-        return -20;
+            
+        return bestScore;
     }
-
-        
-    return bestScore;
-}
+};
 
 move iterativeSearch(board* b, int timeAlloc) {
     auto t1 = std::chrono::high_resolution_clock::now();
+    searcher s = searcher{};
     
     for(int depth=1;depth<20;depth++){
-        maxdepth = depth;
-        int score = alphabeta(b, -10000, 10000, depth);
+        int score = s.alphabeta(b, -10000, 10000, depth);
         auto t2 = std::chrono::high_resolution_clock::now();
         int time = (std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1)).count();
-        std::cout << "info depth " << depth << " cp " << score << " time " << time << std::endl;
+        std::cout << "info depth " << depth << " cp " << score << " time " << time << " nodes " << s.nodes << std::endl;
         if (time > timeAlloc) break;
     }
 
-    ttentry* tentry = tableget(b);
+    ttentry* tentry = tableget(b->getHash());
     return tentry->tableMove;
 }
