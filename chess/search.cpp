@@ -90,7 +90,7 @@ struct searcher {
         }
 
         unsigned long long hash = b->getHash();
-        if (isRepetition(hash) && ply != 0) return DRAW_SCORE;
+        if (isRepetition(hash)) return DRAW_SCORE;
         push(hash);
 
         std::vector<move> moves = b->GeneratesMoves();

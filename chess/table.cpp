@@ -1,3 +1,37 @@
+unsigned long long zobrist[13][128];
+unsigned long long zobristEP[128];
+unsigned long long zobristSTM[2];
+unsigned long long zobristCastleS[2][2];
+unsigned long long zobristCastleL[2][2];
+
+void initZobrists(){
+    std::random_device rd;
+    std::mt19937_64 mt(rd());
+    std::uniform_int_distribution<uint64_t> rng;
+
+    for(int x=0;x<13;x++){
+        for(int y=0;y<128;y++) zobrist[x][y] = rng(mt);
+    }
+
+    for(int y=0;y<128;y++) zobristEP[y] = rng(mt);
+    for(int y=0;y<2;y++) zobristSTM[y] = rng(mt);
+
+    for(int x=0;x<2;x++) {
+        for(int y=0;y<2;y++) zobristCastleS[y][x] = rng(mt);
+        for(int y=0;y<2;y++) zobristCastleL[y][x] = rng(mt);
+    }
+}
+
+unsigned long long board::getHash(){
+    // We add to the hash the sidetomove, enpassant, and castling rights
+    // You could also try to keep these updated incrementally but I am too lazy
+    return (hash ^ zobristEP[enpassant] ^ zobristSTM[whiteToMove] ^ zobristCastleS[0][shortCastle[0]] ^ zobristCastleS[1][shortCastle[1]] ^ zobristCastleL[0][longCastle[0]] ^ zobristCastleL[1][longCastle[1]]);
+}
+
+void board::updateHash(int index, int8_t piece){
+    if (piece != EMPTY) hash ^= zobrist[piece+6][index];
+}
+
 struct ttentry {
     unsigned long long fullHash;
     int16_t score;
