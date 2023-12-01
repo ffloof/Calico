@@ -102,6 +102,7 @@ void initPSQT(){
     }
 }
 
+// TODO: add a method for incremental updates
 int evaluate(board* b) {
     int earlyScore = 0;
     int lateScore = 0;
@@ -128,6 +129,6 @@ int evaluate(board* b) {
     if (phase > 44) phase = 44;
     int score = ((phase * earlyScore) + ((44-phase)*lateScore))/44;
 
-    if (b->whiteToMove) return score;
-    return -score;
+    if (!b->whiteToMove) score = -score;
+    return score + 10; // tempobonus
 }

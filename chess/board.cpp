@@ -75,7 +75,6 @@ struct move {
         std::cout << squareToStr(start); 
         std::cout << squareToStr(end);
         if (flag != EMPTY) std::cout << pieceToChar(-flag);
-        std::cout << std::endl;
     }
 };
 
@@ -357,7 +356,7 @@ board newBoard(std::string fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ
     std::string epstr = beforeWord(afterWord(afterWord(details, " "), " "), " ");
     if (epstr != "-" && epstr != "" && epstr != " ") b.enpassant = strToSquare(epstr);
 
-    // TODO: halfmove clock?
+    // Should I add halfmove clock?
     return b;
 }
 

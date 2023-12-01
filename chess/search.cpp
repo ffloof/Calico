@@ -1,7 +1,7 @@
 #include <vector>
 #include <chrono>
 
-// TODO: define constants for things like mate
+// TODO: define constants for mate
 
 int qsearch(board* b, int alpha, int beta) {
     int standpat = evaluate(b);
@@ -19,8 +19,6 @@ int qsearch(board* b, int alpha, int beta) {
     }
 
     int legals = 0;
-    int bestScore = -10000;
-
     for (int i=0;i<moves.size();i++){
         int bestPriority = 0;
         int bestIndex = 0;
@@ -61,6 +59,7 @@ struct searcher {
     int ply;
     unsigned long long repetition[255];
     double timeAlloc;
+
     // TODO: add evals here
     // TODO: add history heuristic here
 
@@ -91,13 +90,21 @@ struct searcher {
 
         unsigned long long hash = b->getHash();
 
-        if (isRepetition(hash)) return -20;
+        if (isRepetition(hash)) return -16;
         push(hash);
 
         ttentry* tentry = tableget(hash);
         move tablemove;
         if (tentry != nullptr) {
             tablemove = tentry->tableMove;
+            if (depth <= tentry->depth && ply != 0){ 
+                if ((tentry->bound == EXACT)
+                || (tentry->bound == LOWERBOUND && tentry->score >= beta) 
+                || (tentry->bound == UPPERBOUND && tentry->score <= alpha)) { 
+                    pop();
+                    return tentry->score;
+                }
+            }
         }
 
         for (int i=0;i<moves.size();i++){
@@ -141,14 +148,17 @@ struct searcher {
             }
         }
 
-        pop();
-        tableset(b, bestMove, depth, bestScore, 2);
+        int8_t boundtype = EXACT;
+        if (bestScore < alpha) boundtype = UPPERBOUND; // TODO: not exactly correct we want to know if we raised alpha
+        if (bestScore >= beta) boundtype = LOWERBOUND;
+
+        tableset(b, bestMove, depth, bestScore, boundtype);
         if (legals == 0) {
-            if (b->inCheck) return -10000;
-            return -20;
+            if (b->inCheck) return -10000 + ply;
+            return -16;
         }
 
-            
+        pop();
         return bestScore;
     }
 };
@@ -161,7 +171,9 @@ move iterativeSearch(board* b, int timeAlloc) {
         int score = s.alphabeta(b, -10000, 10000, depth);
         auto t2 = std::chrono::high_resolution_clock::now();
         int time = (std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1)).count();
-        std::cout << "info depth " << depth << " cp " << score << " time " << time << " nodes " << s.nodes << std::endl;
+        std::cout << "info depth " << depth << " cp " << score << " time " << time << " nodes " << s.nodes << " ";
+        printpv(b);
+        std::cout << std::endl;
         if (time > timeAlloc) break;
     }
 

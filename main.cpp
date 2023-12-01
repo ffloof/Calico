@@ -66,6 +66,7 @@ int main(){
             move chosenMove = iterativeSearch(&uciBoard, totalTime/30);
             std::cout << "bestmove ";
             chosenMove.print();
+            std::cout << std::endl;
         }
     }
 }

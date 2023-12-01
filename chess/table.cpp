@@ -23,3 +23,14 @@ void tableset(board* b, move m, int16_t depth, int16_t score, int8_t bound) {
     ttable[key % tsize] = ttentry{key, score, depth, m, bound};
 }
 
+void printpv(board* b){
+    std::cout << "pv";
+    while (b != nullptr) {
+        ttentry* entry = tableget(b->getHash());
+        if (entry == nullptr) break;
+        if (entry->depth <= 0) break;
+        std::cout << " ";
+        entry->tableMove.print(); 
+        b = apply(b, entry->tableMove);
+    }
+}
