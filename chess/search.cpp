@@ -1,7 +1,11 @@
 #include <vector>
 #include <chrono>
 
-// TODO: define constants for mate
+const int MATE_SCORE = -10000;
+const int DRAW_SCORE = -11;
+
+const int TABLEMOVE_PRIORITY = 1000000000;
+const int CAPTURE_PRIORITY   = 100000000;
 
 int qsearch(board* b, int alpha, int beta) {
     int standpat = evaluate(b);
@@ -58,10 +62,10 @@ struct searcher {
     int nodes;
     int ply;
     unsigned long long repetition[255];
+    int history[2][128][128];
     double timeAlloc;
 
     // TODO: add evals here
-    // TODO: add history heuristic here
 
     void push(unsigned long long hash){
         repetition[ply] = hash;
@@ -86,7 +90,7 @@ struct searcher {
         }
 
         unsigned long long hash = b->getHash();
-        if (isRepetition(hash) && ply != 0) return -16;
+        if (isRepetition(hash) && ply != 0) return DRAW_SCORE;
         push(hash);
 
         std::vector<move> moves = b->GeneratesMoves();
@@ -96,7 +100,7 @@ struct searcher {
         move tablemove;
         if (tentry != nullptr) {
             tablemove = tentry->tableMove;
-            if (depth <= tentry->depth && ply != 0){ 
+            if (depth <= tentry->depth){ 
                 if ((tentry->bound == EXACT)
                 || (tentry->bound == LOWERBOUND && tentry->score >= beta) 
                 || (tentry->bound == UPPERBOUND && tentry->score <= alpha)) { 
@@ -108,12 +112,13 @@ struct searcher {
 
         for (int i=0;i<moves.size();i++){
             move m = moves[i];
-            priorities[i] = (abs(b->squares[m.end]) * 8) - abs(b->squares[m.start]) + 10;
-            if(m.start == tablemove.start && m.end == tablemove.end && m.flag == tablemove.flag) priorities[i] = 1000;
+            priorities[i] = (abs(b->squares[m.end]) * 8) - abs(b->squares[m.start]) + CAPTURE_PRIORITY;
+            priorities[i] += history[b->whiteToMove][m.start][m.end];
+            if(m.start == tablemove.start && m.end == tablemove.end && m.flag == tablemove.flag) priorities[i] = TABLEMOVE_PRIORITY;
         }
 
         int legals = 0;
-        int bestScore = -10000;
+        int bestScore = MATE_SCORE;
         move bestMove;
 
         for (int i=0;i<moves.size();i++){
@@ -142,7 +147,10 @@ struct searcher {
                 bestMove = m;
                 if (score > alpha) {
                     alpha = score;
-                    if (score >= beta) break;
+                    if (score >= beta) { 
+                        if(b->squares[m.end] == EMPTY) history[b->whiteToMove][m.start][m.end] += depth * depth;
+                        break;
+                    }
                 }
             }
         }
@@ -154,8 +162,8 @@ struct searcher {
         tableset(b, bestMove, depth, bestScore, boundtype);
         if (legals == 0) {
             pop();
-            if (b->inCheck) return -10000 + ply;
-            return -16;
+            if (b->inCheck) return MATE_SCORE + ply;
+            return DRAW_SCORE;
         }
 
         pop();
@@ -168,13 +176,12 @@ move iterativeSearch(board* b, int timeAlloc) {
     searcher s = searcher{};
     
     for(int depth=1;depth<20;depth++){
-        int score = s.alphabeta(b, -10000, 10000, depth);
+        int score = s.alphabeta(b, MATE_SCORE, -MATE_SCORE, depth);
         auto t2 = std::chrono::high_resolution_clock::now();
         int time = (std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1)).count();
         std::cout << "info depth " << depth << " cp " << score << " time " << time << " nodes " << s.nodes << " ";
         printpv(b);
         std::cout << std::endl;
-        std::cout << "ply" << s.ply << std::endl;
         if (time > timeAlloc) break;
     }
 
