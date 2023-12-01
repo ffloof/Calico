@@ -85,13 +85,12 @@ struct searcher {
             return qsearch(b, alpha, beta);
         }
 
+        unsigned long long hash = b->getHash();
+        if (isRepetition(hash) && ply != 0) return -16;
+        push(hash);
+
         std::vector<move> moves = b->GeneratesMoves();
         std::vector<int> priorities(moves.size());
-
-        unsigned long long hash = b->getHash();
-
-        if (isRepetition(hash)) return -16;
-        push(hash);
 
         ttentry* tentry = tableget(hash);
         move tablemove;
@@ -154,6 +153,7 @@ struct searcher {
 
         tableset(b, bestMove, depth, bestScore, boundtype);
         if (legals == 0) {
+            pop();
             if (b->inCheck) return -10000 + ply;
             return -16;
         }
@@ -174,6 +174,7 @@ move iterativeSearch(board* b, int timeAlloc) {
         std::cout << "info depth " << depth << " cp " << score << " time " << time << " nodes " << s.nodes << " ";
         printpv(b);
         std::cout << std::endl;
+        std::cout << "ply" << s.ply << std::endl;
         if (time > timeAlloc) break;
     }
 
