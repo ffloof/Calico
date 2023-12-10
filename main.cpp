@@ -43,7 +43,7 @@ int main(){
             auto t1 = std::chrono::high_resolution_clock::now();
             std::cout << perft(&uciBoard, std::stoi(arguments)) << std::endl;
             auto t2 = std::chrono::high_resolution_clock::now();
-            std::cout << (std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1)).count() << std::endl;
+            std::cout << (std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1)).count() << "ms" << std::endl;
         } else if (command == "position") {
             if (beforeWord(arguments, "moves") == "startpos"){
                 uciBoard = newBoard();
@@ -56,17 +56,23 @@ int main(){
             try {
                 if (uciBoard.whiteToMove) totalTime = std::stoi(beforeWord(afterWord(arguments, "wtime"), " "));
                 else totalTime = std::stoi(beforeWord(afterWord(arguments, "btime"), " "));
+                iterativeSearch(&uciBoard, totalTime/50);
             } catch(const std::invalid_argument& e) {
                 try {
-                    totalTime = std::stoi(beforeWord(afterWord(arguments, "movetime"), " ")) * 30;
+                    totalTime = std::stoi(beforeWord(afterWord(arguments, "movetime"), " "));
+                    iterativeSearch(&uciBoard, totalTime/2);
                 } catch(const std::invalid_argument& e) {
-                    totalTime = 10000*30;
+                    iterativeSearch(&uciBoard, 10000);
                 }
             }
-            move chosenMove = iterativeSearch(&uciBoard, totalTime/30);
-            std::cout << "bestmove ";
-            chosenMove.print();
-            std::cout << std::endl;
+        } else if (command == "null") {
+            board* testnm = apply(&uciBoard, NULLMOVE); 
+            if (testnm == nullptr) std::cout << "NULL" << std::endl;
+            else {
+                testnm->print(); 
+                std::cout << perft(testnm, 1) << std::endl;
+            }
+
         }
     }
 }

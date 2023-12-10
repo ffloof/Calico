@@ -42,9 +42,9 @@ struct ttentry {
 
 const int8_t LOWERBOUND = -1, EXACT = 0, UPPERBOUND = 1;
 
-const int tsize = 10000000;
+const int tsize = 20000000;
 
-ttentry ttable[10000000] = {};
+ttentry ttable[20000000] = {};
 
 ttentry* tableget(unsigned long long key) {
     ttentry* e = &ttable[key % tsize];
@@ -59,6 +59,7 @@ void tableset(board* b, move m, int16_t depth, int16_t score, int8_t bound) {
 
 void printpv(board* b){
     std::cout << "pv";
+    int i = 0;
     while (b != nullptr) {
         ttentry* entry = tableget(b->getHash());
         if (entry == nullptr) break;
@@ -66,5 +67,7 @@ void printpv(board* b){
         std::cout << " ";
         entry->tableMove.print(); 
         b = apply(b, entry->tableMove);
+        i += 1;
+        if(i > 40) break;
     }
 }

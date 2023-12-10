@@ -1,13 +1,25 @@
 #include <vector>
 #include <chrono>
 
-const int MATE_SCORE = -10000;
-const int DRAW_SCORE = -11;
+const int MATE_SCORE = 10000;
+const int DRAW_SCORE = -33;
 
 const int TABLEMOVE_PRIORITY = 1000000000;
 const int CAPTURE_PRIORITY   = 100000000;
 
 int qsearch(board* b, int alpha, int beta) {
+    ttentry* tentry = tableget(b->getHash());
+    move tablemove;
+    if (tentry != nullptr) {
+        tablemove = tentry->tableMove;
+        if ((tentry->bound == EXACT)
+        || (tentry->bound == LOWERBOUND && tentry->score >= beta) 
+        || (tentry->bound == UPPERBOUND && tentry->score <= alpha)) { 
+            return tentry->score;
+        }   
+    }
+
+
     int standpat = evaluate(b);
     if (standpat > alpha) {
         alpha = standpat;
@@ -62,8 +74,10 @@ struct searcher {
     int nodes;
     int ply;
     unsigned long long repetition[255];
-    int history[2][128][128];
-    double timeAlloc;
+    int64_t history[2][128][128];
+    std::chrono::time_point<std::chrono::steady_clock> startTime;
+    int timeAlloc;
+
 
     // TODO: add evals here
 
@@ -84,17 +98,25 @@ struct searcher {
         return false;
     }
 
+    int ellapsedTime(){
+        auto currentTime = std::chrono::steady_clock::now();
+        return std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
+    }
+
+    bool outOfTime(){
+        return ellapsedTime() > timeAlloc;
+    }
+
     int alphabeta(board* b, int alpha, int beta, int depth){
         if (depth <= 0) {
             return qsearch(b, alpha, beta);
         }
 
+        bool pv = beta > alpha + 1;
+
         unsigned long long hash = b->getHash();
         if (isRepetition(hash)) return DRAW_SCORE;
         push(hash);
-
-        std::vector<move> moves = b->GeneratesMoves();
-        std::vector<int> priorities(moves.size());
 
         ttentry* tentry = tableget(hash);
         move tablemove;
@@ -109,6 +131,31 @@ struct searcher {
                 }
             }
         }
+        
+        /*
+        int eval = evaluate(b);
+
+        // Null move pruning
+        if (!pv && depth >= 2 && eval >= beta && b->phase > 6) {
+            board* nmBoard = apply(b, NULLMOVE);
+            if (nmBoard != nullptr) {
+                int nmReduction = 3 + (depth/4);
+                int nmScore = -alphabeta(nmBoard, -beta, -alpha, depth - nmReduction);
+                delete nmBoard;
+                if (nmScore >= beta) {
+                    pop();
+                    return nmScore;
+                }
+            }
+        } */
+
+        /*
+        // Check extension
+        if (b->inCheck) depth += 1;
+        */
+
+        std::vector<move> moves = b->GeneratesMoves();
+        std::vector<int> priorities(moves.size());
 
         for (int i=0;i<moves.size();i++){
             move m = moves[i];
@@ -118,8 +165,9 @@ struct searcher {
         }
 
         int legals = 0;
-        int bestScore = MATE_SCORE;
+        int bestScore = -20000;
         move bestMove;
+        bool raisedAlpha = false;
 
         for (int i=0;i<moves.size();i++){
             int bestPriority = 0;
@@ -139,13 +187,30 @@ struct searcher {
             if (nextBoard == nullptr) continue;
             legals++;
 
-            int score = -alphabeta(nextBoard, -beta, -alpha, depth-1);
+            
+            // PVS
+            int score = 0;
+            if (legals == 1) {
+                score = -alphabeta(nextBoard, -beta, -alpha, depth-1);
+            } else {
+                //LMR
+                //int reduction = ((legals / 16));
+                int reduction = 0;
+                if ((b->squares[m.end] != EMPTY) || pv || b->inCheck) reduction = 0;
+                score = -alphabeta(nextBoard, -alpha-1, -alpha, depth-1-reduction);
+                if (score > alpha && reduction > 0) score = -alphabeta(nextBoard, -alpha-1, -alpha, depth-1);
+                if (score > alpha && pv) score = -alphabeta(nextBoard, -beta, -alpha, depth-1);
+            } 
+
+            //int score = -alphabeta(nextBoard, -beta, -alpha, depth-1);
+
             delete nextBoard;
 
             if (score > bestScore) {
                 bestScore = score;
                 bestMove = m;
                 if (score > alpha) {
+                    raisedAlpha = true;
                     alpha = score;
                     if (score >= beta) { 
                         if(b->squares[m.end] == EMPTY) history[b->whiteToMove][m.start][m.end] += depth * depth;
@@ -155,36 +220,41 @@ struct searcher {
             }
         }
 
+        if (legals == 0) {
+            pop();
+            if (b->inCheck) return -MATE_SCORE + ply;
+            return DRAW_SCORE;
+        }
+
         int8_t boundtype = EXACT;
-        if (bestScore < alpha) boundtype = UPPERBOUND; // TODO: not exactly correct we want to know if we raised alpha
+        if (!raisedAlpha) boundtype = UPPERBOUND;
         if (bestScore >= beta) boundtype = LOWERBOUND;
 
         tableset(b, bestMove, depth, bestScore, boundtype);
-        if (legals == 0) {
-            pop();
-            if (b->inCheck) return MATE_SCORE + ply;
-            return DRAW_SCORE;
-        }
+        
 
         pop();
         return bestScore;
     }
 };
 
-move iterativeSearch(board* b, int timeAlloc) {
-    auto t1 = std::chrono::high_resolution_clock::now();
+void iterativeSearch(board* b, int searchTime) {
     searcher s = searcher{};
+    s.startTime = std::chrono::steady_clock::now();
+    s.timeAlloc = searchTime;
     
     for(int depth=1;depth<20;depth++){
-        int score = s.alphabeta(b, MATE_SCORE, -MATE_SCORE, depth);
-        auto t2 = std::chrono::high_resolution_clock::now();
-        int time = (std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1)).count();
-        std::cout << "info depth " << depth << " cp " << score << " time " << time << " nodes " << s.nodes << " ";
+        int score = s.alphabeta(b, -MATE_SCORE, MATE_SCORE, depth);
+        std::cout << "info depth " << depth << " cp " << score << " time " << s.ellapsedTime() << " nodes " << s.nodes << " ";
         printpv(b);
         std::cout << std::endl;
-        if (time > timeAlloc) break;
+
+        if (s.outOfTime()) break;
     }
 
     ttentry* tentry = tableget(b->getHash());
-    return tentry->tableMove;
+    move chosenMove = tentry->tableMove;
+    std::cout << "bestmove ";
+    chosenMove.print();
+    std::cout << std::endl;
 }

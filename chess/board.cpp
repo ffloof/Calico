@@ -64,6 +64,10 @@ struct board {
     bool whiteToMove;
     bool inCheck;
 
+    int earlyScore;
+    int lateScore;
+    int phase;
+
     std::vector<move> GeneratesMoves(bool capturesOnly=false){
         std::vector<move> moves = {};
 
@@ -114,7 +118,7 @@ struct board {
         int kingIdx = kings[whiteToMove];
         bool canShortCastle = shortCastle[whiteToMove];
         bool canLongCastle = longCastle[whiteToMove];
-        bool inCheck = attacked(kingIdx);
+        inCheck = attacked(kingIdx);
 
         if (!capturesOnly && !inCheck) {
             if (canShortCastle && squares[kingIdx + E] == EMPTY && squares[kingIdx + E + E] == EMPTY && !attacked(kingIdx + E) && !attacked(kingIdx + E + E)) {
@@ -193,10 +197,14 @@ struct board {
     unsigned long long getHash();
     void updateHash(int index, int8_t piece);
 
+    // Defined in eval.cpp
+    void updateEval(int index, int8_t oldPiece, int8_t newPiece);
+
     void edit(int index, int8_t piece){
         int8_t oldPiece = squares[index];
         updateHash(index, oldPiece);
         updateHash(index, piece);
+        updateEval(index, oldPiece, piece);
         
         squares[index] = piece;
     }
@@ -358,5 +366,4 @@ board* applyMoveStr(board* b, std::string moveStr){
     return apply(b, move{start,end,flag});
 }
 
-move NULLMOVE = move{0,0,0};
- 
+move NULLMOVE = move{9,9,EMPTY};

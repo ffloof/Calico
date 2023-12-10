@@ -13,7 +13,7 @@ int earlyPSQT[7][64] = {
   10,  20,  10,  10,  10,   5,  15,  -5,
  -10,   0,  -5,   0,   5,  -5,   5, -15,
  -15,   0,  -5,  -5,   0,  -5,  15, -15,
- -15,   0, -10, -10,  -5,  10,  20, -15,
+ -15,   0, -10, -15, -10,  10,  20, -15,
    0,   0,   0,   0,   0,   0,   0,   0,
     }, 
     { // Knight
@@ -24,7 +24,7 @@ int earlyPSQT[7][64] = {
  -20,  -5,  15,  20,  20,  20,  10, -15,
  -30, -10,   5,  10,  15,   5,   0, -25,
  -40, -40, -15,  -5,  -5,  -5, -20, -35,
- -80, -40, -45, -30, -25, -30, -40, -50,
+ -80, -35, -45, -30, -25, -30, -40, -50,
     },
     { // Bishop
  -25, -10, -55, -25, -20, -30,  -5, -20,
@@ -102,32 +102,35 @@ void initPSQT(){
     }
 }
 
-// TODO: add a method for incremental updates
-int evaluate(board* b) {
-    int earlyScore = 0;
-    int lateScore = 0;
-    int phase = 0;
+void board::updateEval(int index, int8_t oldPiece, int8_t newPiece) {
+    int i = (index + (index & 7)) >> 1;
 
-    for(int i=0;i<128;i++){
-        int8_t piece = b->squares[i];
-        if(piece == EMPTY) continue;
-        
-        int j = (i + (i & 7)) >> 1;
-
-        if (piece > 0){
-            earlyScore += earlyPSQT[abs(piece)][j];
-            lateScore += latePSQT[abs(piece)][j];
-        } else {
-            j = j ^ 56;
-            earlyScore -= earlyPSQT[abs(piece)][j];
-            lateScore -= latePSQT[abs(piece)][j];
-        }
-
-        phase += phases[abs(piece)];
+    if (oldPiece > 0){
+        earlyScore -= earlyPSQT[oldPiece][i];
+        lateScore -= latePSQT[oldPiece][i];
+        phase -= phases[oldPiece];
+    } else {
+        earlyScore -= -earlyPSQT[-oldPiece][i^56];
+        lateScore -= -latePSQT[-oldPiece][i^56];
+        phase -= phases[-oldPiece];
     }
 
-    if (phase > 44) phase = 44;
-    int score = ((phase * earlyScore) + ((44-phase)*lateScore))/44;
+    if (newPiece > 0){
+        earlyScore += earlyPSQT[newPiece][i];
+        lateScore += latePSQT[newPiece][i];
+        phase += phases[newPiece];
+    } else {
+        earlyScore += -earlyPSQT[-newPiece][i^56];
+        lateScore += -latePSQT[-newPiece][i^56];
+        phase += phases[-newPiece];
+    }
+}
+
+// TODO: add a method for incremental updates
+int evaluate(board* b) {
+    int truePhase = b->phase;
+    if (truePhase > 44) truePhase = 44;
+    int score = ((truePhase * b->earlyScore) + ((44-truePhase)*b->lateScore))/44; 
 
     if (!b->whiteToMove) score = -score;
     return score + 10; // tempobonus
