@@ -54,6 +54,8 @@ struct move {
     }
 };
 
+move NULLMOVE = move{9,9,EMPTY};
+
 struct board {
     int8_t squares[128];
     int kings[2]; 
@@ -365,5 +367,3 @@ board* applyMoveStr(board* b, std::string moveStr){
     if(moveStr.length() == 5) flag = abs(charToPiece(moveStr[4]));
     return apply(b, move{start,end,flag});
 }
-
-move NULLMOVE = move{9,9,EMPTY};

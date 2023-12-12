@@ -6,18 +6,28 @@
 #include <chrono>
 #include <fstream>
 
-board* unrollMoveStr(board* b,std::string remainingMoves){
-    if (remainingMoves == "") return b;
+board uciBoard = newBoard();
+
+std::vector<unsigned long long> unrollMoveStr(board* b,std::string remainingMoves){
+    if (remainingMoves == "") { 
+        uciBoard = *b;
+        std::vector<unsigned long long> posHistory = {};
+        return posHistory;
+    }
     b = applyMoveStr(b, beforeWord(remainingMoves, " "));
-    return unrollMoveStr(b, afterWord(remainingMoves, " "));
+    std::vector<unsigned long long> posHistory = unrollMoveStr(b, afterWord(remainingMoves, " "));
+    if (posHistory.size() < 12) posHistory.push_back(b->getHash());
+    delete b;
+
+    return posHistory;
 }
 
 int main(){
+    std::vector<unsigned long long> prevPositions;
     initZobrists();
     initPSQT();
     
     std::string line;
-    board uciBoard = newBoard(); 
 
     std::ofstream outputFile("inputlog.txt");
     outputFile << "START" << std::endl;
@@ -50,29 +60,21 @@ int main(){
             } else {
                 uciBoard = newBoard(afterWord(beforeWord(arguments, "moves"), " "));
             }
-            uciBoard = *(unrollMoveStr(&uciBoard, afterWord(arguments, "moves")));
+            prevPositions = unrollMoveStr(&uciBoard, afterWord(arguments, "moves"));
         } else if (command == "go") {
             int totalTime;
             try {
                 if (uciBoard.whiteToMove) totalTime = std::stoi(beforeWord(afterWord(arguments, "wtime"), " "));
                 else totalTime = std::stoi(beforeWord(afterWord(arguments, "btime"), " "));
-                iterativeSearch(&uciBoard, totalTime/50);
+                iterativeSearch(&uciBoard, totalTime/50, prevPositions);
             } catch(const std::invalid_argument& e) {
                 try {
                     totalTime = std::stoi(beforeWord(afterWord(arguments, "movetime"), " "));
-                    iterativeSearch(&uciBoard, totalTime/2);
+                    iterativeSearch(&uciBoard, totalTime/2, prevPositions);
                 } catch(const std::invalid_argument& e) {
-                    iterativeSearch(&uciBoard, 10000);
+                    iterativeSearch(&uciBoard, 10000, prevPositions);
                 }
             }
-        } else if (command == "null") {
-            board* testnm = apply(&uciBoard, NULLMOVE); 
-            if (testnm == nullptr) std::cout << "NULL" << std::endl;
-            else {
-                testnm->print(); 
-                std::cout << perft(testnm, 1) << std::endl;
-            }
-
         }
     }
 }

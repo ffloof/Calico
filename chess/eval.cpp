@@ -126,7 +126,6 @@ void board::updateEval(int index, int8_t oldPiece, int8_t newPiece) {
     }
 }
 
-// TODO: add a method for incremental updates
 int evaluate(board* b) {
     int truePhase = b->phase;
     if (truePhase > 44) truePhase = 44;
