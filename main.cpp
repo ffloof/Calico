@@ -16,7 +16,7 @@ std::vector<unsigned long long> unrollMoveStr(board* b,std::string remainingMove
     }
     b = applyMoveStr(b, beforeWord(remainingMoves, " "));
     std::vector<unsigned long long> posHistory = unrollMoveStr(b, afterWord(remainingMoves, " "));
-    if (posHistory.size() < 12) posHistory.push_back(b->getHash());
+    if (posHistory.size() < 16) posHistory.push_back(b->getHash());
     delete b;
 
     return posHistory;
@@ -74,6 +74,10 @@ int main(){
                 } catch(const std::invalid_argument& e) {
                     iterativeSearch(&uciBoard, 10000, prevPositions);
                 }
+            }
+        } else if (command == "prev") {
+            for (unsigned long long u : prevPositions) {
+                std::cout << "hash" << u << std::endl;
             }
         }
     }

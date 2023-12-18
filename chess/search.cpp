@@ -36,8 +36,8 @@ struct searcher {
             if (repetition[i] == hash) return true;
         }
 
-        for (int i=0;i<prev.size();i++) {
-            if (prev[i] == hash) return true;
+        for (int i=1;i<prev.size();i+=2) {
+            if (prev[i] == hash) return true; 
         }
 
         return false;
@@ -108,10 +108,7 @@ struct searcher {
             }
         }
 
-        /* TODO: figure out how to handle check in qsearch
-        if (b->inCheck) return -10000;
-        return -69;
-        */
+        //if (b->inCheck) return alpha - 50;
         
         return alpha;
     }
@@ -129,10 +126,17 @@ struct searcher {
 
         ttentry* tentry = tableget(hash);
 
+        // TODO: could this be leading us astray in endgame positions?
+        // Internal iterative deepening
+        if (tentry == nullptr && depth > 4) {
+            alphabeta(b, alpha, beta, depth/2);
+            tentry = tableget(hash);
+        }
+
         move tablemove;
         if (tentry != nullptr) {
             tablemove = tentry->tableMove;
-            if (depth <= tentry->depth){ 
+            if (depth <= tentry->depth && ply != 0){ 
                 if ((tentry->bound == EXACT)
                 || (tentry->bound == LOWERBOUND && tentry->score >= beta) 
                 || (tentry->bound == UPPERBOUND && tentry->score <= alpha)) { 
@@ -142,11 +146,11 @@ struct searcher {
             }
         }
         
-        /*        
+        
         int eval = evaluate(b);
 
         // Null move pruning
-        if (!pv && depth >= 2 && eval >= beta && b->phase > 6) {
+        if (!pv && depth >= 2 && eval >= beta && b->phase > 8) {
             board* nmBoard = apply(b, NULLMOVE);
             if (nmBoard != nullptr) {
                 int nmReduction = 3 + (depth/3);
@@ -157,11 +161,16 @@ struct searcher {
                     return nmScore;
                 }
             }
-        }*/
-        
+        }
 
         std::vector<move> moves = b->GeneratesMoves();
         std::vector<int> priorities(moves.size());
+
+        // Reverse futility pruning
+        if (!pv && !b->inCheck && depth < 5 && eval >= beta + (125*depth)) {
+            pop();
+            return eval;
+        }
 
         /*
         // Check extension
@@ -205,7 +214,7 @@ struct searcher {
                 score = -alphabeta(nextBoard, -beta, -alpha, depth-1);
             } else {
                 //LMR
-                int reduction = ((legals / 16) + (depth / 8) + (legals > 4));
+                int reduction = ((legals / 16) + (depth / 6) + (legals > 4));
                 if ((b->squares[m.end] != EMPTY) || pv || b->inCheck) reduction = 0;
                 score = -alphabeta(nextBoard, -alpha-1, -alpha, depth-1-reduction);
                 if (score > alpha && reduction > 0) score = -alphabeta(nextBoard, -alpha-1, -alpha, depth-1);
@@ -253,7 +262,7 @@ void iterativeSearch(board* b, int searchTime, std::vector<unsigned long long> p
     s.prev = prevHashs;
     
     int depth;
-    for(depth=1;depth<20;depth++){
+    for(depth=1;depth<30;depth++){
         int score = s.alphabeta(b, -MATE_SCORE, MATE_SCORE, depth);
         std::cout << "info depth " << depth << " cp " << score << " time " << s.ellapsedTime() << " nodes " << s.nodes << " ";
         printpv(b);
