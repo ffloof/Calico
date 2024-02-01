@@ -261,16 +261,22 @@ void iterativeSearch(board* b, int searchTime, std::vector<unsigned long long> p
     s.timeAlloc = searchTime;
     s.prev = prevHashs;
     
+    ttentry* tentry = tableget(b->getHash());
+    int lastscore = 0;
+    if (tentry != nullptr) lastscore = tentry->score;
+
     int depth;
     for(depth=1;depth<30;depth++){
-        int score = s.alphabeta(b, -MATE_SCORE, MATE_SCORE, depth);
+        int score = s.alphabeta(b, lastscore - 30, lastscore + 30, depth);
+        if ((score < lastscore - 30) || (lastscore + 30 < score)) score = s.alphabeta(b, -MATE_SCORE, MATE_SCORE, depth);
+
         std::cout << "info depth " << depth << " cp " << score << " time " << s.ellapsedTime() << " nodes " << s.nodes << " ";
         printpv(b);
         std::cout << std::endl;
         if (s.outOfTime() || score > 9000) break;  
     }
 
-    ttentry* tentry = tableget(b->getHash());
+    tentry = tableget(b->getHash());
     move chosenMove = tentry->tableMove;
     std::cout << "bestmove ";
     chosenMove.print();
