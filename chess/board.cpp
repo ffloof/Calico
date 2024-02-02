@@ -94,11 +94,7 @@ struct board {
             if (squares[i] == EMPTY) continue;
             if ((squares[i] & 1) != whiteToMove) continue;
 
-            
-            
             int8_t piecetype = squares[i] & 14;
-
-           
 
             switch(piecetype){
                 
@@ -143,13 +139,11 @@ struct board {
         bool canLongCastle = longCastle[whiteToMove];
         inCheck = attacked(kingIdx);
 
-        // TODO: remove calls to look for check on king end square
-        // this will be checked anyway in apply
         if (!capturesOnly && !inCheck) {
-            if (canShortCastle && squares[kingIdx + E] == EMPTY && squares[kingIdx + E + E] == EMPTY && !attacked(kingIdx + E) && !attacked(kingIdx + E + E)) {
+            if (canShortCastle && squares[kingIdx + E] == EMPTY && squares[kingIdx + E + E] == EMPTY && !attacked(kingIdx + E)) {
                 addMove(&moves, kingIdx, kingIdx+E+E, false);
             }
-            if (canLongCastle && squares[kingIdx + W] == EMPTY && squares[kingIdx + W + W] == EMPTY && squares[kingIdx + W + W + W] == EMPTY && !attacked(kingIdx + W) && !attacked(kingIdx + W + W)) {
+            if (canLongCastle && squares[kingIdx + W] == EMPTY && squares[kingIdx + W + W] == EMPTY && squares[kingIdx + W + W + W] == EMPTY && !attacked(kingIdx + W)) {
                 addMove(&moves, kingIdx, kingIdx+W+W, false);
             }
         }
