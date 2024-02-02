@@ -18,7 +18,7 @@
 
 const int color[2] = {-1,1};
 const int N = -16, S = 16, W = -1, E = 1;
-const int8_t EMPTY = 0, PAWN = 1, KNIGHT = 2, BISHOP = 3, ROOK = 4, QUEEN = 5, KING = 6;
+const int8_t EMPTY = 0, PAWN = 2, KNIGHT = 4, BISHOP = 6, ROOK = 8, QUEEN = 10, KING = 12;
 const int A8 = 0, H8 = 7, A1 = 112, H1 = 119; 
 
 bool valid(int index) {
@@ -39,14 +39,14 @@ int strToSquare(std::string str){
 }
 
 char pieceToChar(int8_t piece){
-    const std::string pieceChars = "kqrbnp.PNBRQK";
-    return pieceChars[piece + 6];
+    const std::string pieceChars = "..pPnNbBrRqQkK";
+    return pieceChars[piece];
 }
 
 int8_t charToPiece(char c){
     const std::map<char, int8_t> convert = {
-        {'P', PAWN}, {'N', KNIGHT}, {'B', BISHOP}, {'R', ROOK}, {'Q', QUEEN}, {'K',KING},
-        {'p',-PAWN}, {'n',-KNIGHT}, {'b',-BISHOP}, {'r',-ROOK}, {'q',-QUEEN}, {'k',-KING}
+        {'p', PAWN}, {'n', KNIGHT}, {'b', BISHOP}, {'r', ROOK}, {'q', QUEEN}, {'k',KING},
+        {'P',PAWN+1}, {'N',KNIGHT+1}, {'B',BISHOP+1}, {'R',ROOK+1}, {'Q',QUEEN+1}, {'K',KING+1}
     };
 
     if (convert.count(c)) return convert.at(c);
@@ -89,11 +89,19 @@ struct board {
         int sideMobility = 0;
 
         for (int i=0; i<128; i++) {
-            if (squares[i] == EMPTY) continue;
-            if (squares[i] * color[whiteToMove] < 0) continue;
             
-            int8_t piecetype = abs(squares[i]);
+            
+            if (squares[i] == EMPTY) continue;
+            if ((squares[i] & 1) != whiteToMove) continue;
+
+            
+            
+            int8_t piecetype = squares[i] & 14;
+
+           
+
             switch(piecetype){
+                
                 case PAWN:
                     addPawnMove(&moves, i, i+advance+W, true);
                     addPawnMove(&moves, i, i+advance+E, true);
@@ -124,7 +132,7 @@ struct board {
 
         if (enpassant != 0) {
             for (int8_t origin : std::vector<int>{enpassant-advance+W, enpassant-advance+E}) {
-                if (squares[origin] == PAWN * color[whiteToMove]) {
+                if (squares[origin] == PAWN + whiteToMove) {
                     addMove(&moves, origin, enpassant, capturesOnly);
                 }
             }
@@ -135,6 +143,8 @@ struct board {
         bool canLongCastle = longCastle[whiteToMove];
         inCheck = attacked(kingIdx);
 
+        // TODO: remove calls to look for check on king end square
+        // this will be checked anyway in apply
         if (!capturesOnly && !inCheck) {
             if (canShortCastle && squares[kingIdx + E] == EMPTY && squares[kingIdx + E + E] == EMPTY && !attacked(kingIdx + E) && !attacked(kingIdx + E + E)) {
                 addMove(&moves, kingIdx, kingIdx+E+E, false);
@@ -170,9 +180,11 @@ struct board {
     }
 
     void addMove(std::vector<move>* moves, int8_t start, int8_t end, bool capturesOnly, int8_t flag=EMPTY) {
+        
         if (!valid(end)) return;
         if (capturesOnly && squares[end] == EMPTY) return;
-        if (squares[start] * squares[end] > 0) return;
+        if (squares[end] != EMPTY && (whiteToMove == (squares[end] & 1))) return;
+
         moves->push_back(move{start,end,flag});
     }
 
@@ -189,16 +201,16 @@ struct board {
     }
 
     bool attacked(int index) {
-        int attackerColor = color[!whiteToMove];
-        std::vector<int> pawnAttacks = { S+W, S+E };
+        std::vector<int> pawnAttacks = { S+W,S+E };
         if (whiteToMove) pawnAttacks = { N+W,N+E };
         
-        return scan(PAWN * attackerColor, index, pawnAttacks, false) ||
-            scan(KNIGHT * attackerColor, index, std::vector<int>{N+N+W,N+N+E,S+S+W,S+S+E,W+W+N,W+W+S,E+E+N,E+E+S}, false) ||
-            scan(BISHOP * attackerColor, index, std::vector<int>{N+W,N+E,S+W,S+E}, true) ||
-            scan(ROOK * attackerColor, index, std::vector<int>{N,S,E,W}, true) ||
-            scan(QUEEN * attackerColor, index, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, true) ||
-            scan(KING * attackerColor, index, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, false);
+        bool attacked =  scan(PAWN + !whiteToMove, index, pawnAttacks, false) ||
+            scan(KNIGHT + !whiteToMove, index, std::vector<int>{N+N+W,N+N+E,S+S+W,S+S+E,W+W+N,W+W+S,E+E+N,E+E+S}, false) ||
+            scan(BISHOP + !whiteToMove, index, std::vector<int>{N+W,N+E,S+W,S+E}, true) ||
+            scan(ROOK + !whiteToMove, index, std::vector<int>{N,S,E,W}, true) ||
+            scan(QUEEN + !whiteToMove, index, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, true) ||
+            scan(KING + !whiteToMove, index, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, false);
+        return attacked;
     }
 
     bool scan(int8_t find, int start, std::vector<int> pattern, bool ray){
@@ -206,7 +218,7 @@ struct board {
             for (int end = start + direction; valid(end); end += direction) {
                 int8_t piece = squares[end];
                 if (piece == find) return true;
-                if (!ray || piece != 0) break;
+                if (!ray || piece != EMPTY) break;
             }
         }
         return false;
@@ -241,6 +253,7 @@ struct board {
 
 
 board* apply(board* oldBoard, move m){
+
     board* cBoard = new board;
     if (cBoard == nullptr) {
         std::cout << "nullpointerino" << std::endl;
@@ -251,7 +264,7 @@ board* apply(board* oldBoard, move m){
 
     bool isWhite = cBoard->whiteToMove;
     cBoard->enpassant = 0;
-    if (abs(movingPiece) == PAWN) {
+    if ((movingPiece & 14) == PAWN) {
         if (abs(m.end-m.start) == (2 * S)) {
             // DOUBLE PUSH
             cBoard->enpassant = m.end + (S*color[isWhite]);
@@ -264,25 +277,27 @@ board* apply(board* oldBoard, move m){
     cBoard->edit(m.end, movingPiece);
     cBoard->edit(m.start, EMPTY);
 
-    if (abs(movingPiece) == KING) {
+    if ((movingPiece & 14) == KING) {
         cBoard->kings[isWhite] = m.end;
         cBoard->longCastle[isWhite] = false;
         cBoard->shortCastle[isWhite] = false;
         if (m.end - m.start == W + W) {
             //CASTLE LONG
             cBoard->edit(m.end + W + W, EMPTY);
-            cBoard->edit(m.end + E, ROOK*color[isWhite]);
+            cBoard->edit(m.end + E, ROOK+isWhite);
         }
         if (m.end - m.start == E + E) {
             //CASTLE SHORT
             cBoard->edit(m.end + E, EMPTY);
-            cBoard->edit(m.end + W, ROOK*color[isWhite]);
+            cBoard->edit(m.end + W, ROOK+isWhite);
         }
     }
 
+    
+
     // TODO: rename flag to something more descriptive like promoflag
     if (m.flag != EMPTY) {
-        cBoard->edit(m.end, m.flag * color[isWhite]);
+        cBoard->edit(m.end, m.flag + isWhite);
     }
 
     if (cBoard->attacked(cBoard->kings[isWhite])) {
@@ -295,7 +310,8 @@ board* apply(board* oldBoard, move m){
     if (m.start == A1 || m.end == A1) cBoard->longCastle[1] = false;
     if (m.start == A8 || m.end == A8) cBoard->longCastle[0] = false;
 
-    cBoard->whiteToMove = !cBoard->whiteToMove;  
+    cBoard->whiteToMove = !cBoard->whiteToMove;
+
     return cBoard;   
 }
 

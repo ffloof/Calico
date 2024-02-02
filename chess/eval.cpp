@@ -57,7 +57,7 @@ int earlyPSQT[7][64] = {
  -20, -30, -20, -20, -15, -35, -30, -55,
     },
     { // King
--75,  25,  15, -20, -65, -40,   0,  10,
+ -75,  25,  15, -20, -65, -40,   0,  10,
   30,  -5, -25, -10, -10,  -5, -45, -35,
  -10,  25,   0, -20, -25,   5,  20, -25,
  -20, -25, -15, -30, -35, -30, -15, -40,
@@ -105,24 +105,31 @@ void initPSQT(){
 void board::updateEval(int index, int8_t oldPiece, int8_t newPiece) {
     int i = (index + (index & 7)) >> 1;
 
-    if (oldPiece > 0){
+    bool oldPieceWhite = oldPiece & 1;
+    bool newPieceWhite = newPiece & 1;
+
+
+    oldPiece = oldPiece / 2;
+    newPiece = newPiece / 2;
+
+    if (oldPieceWhite){
         earlyScore -= earlyPSQT[oldPiece][i];
         lateScore -= latePSQT[oldPiece][i];
         phase -= phases[oldPiece];
     } else {
-        earlyScore -= -earlyPSQT[-oldPiece][i^56];
-        lateScore -= -latePSQT[-oldPiece][i^56];
-        phase -= phases[-oldPiece];
+        earlyScore -= -earlyPSQT[oldPiece][i^56];
+        lateScore -= -latePSQT[oldPiece][i^56];
+        phase -= phases[oldPiece];
     }
 
-    if (newPiece > 0){
+    if (newPieceWhite){
         earlyScore += earlyPSQT[newPiece][i];
         lateScore += latePSQT[newPiece][i];
         phase += phases[newPiece];
     } else {
-        earlyScore += -earlyPSQT[-newPiece][i^56];
-        lateScore += -latePSQT[-newPiece][i^56];
-        phase += phases[-newPiece];
+        earlyScore += -earlyPSQT[newPiece][i^56];
+        lateScore += -latePSQT[newPiece][i^56];
+        phase += phases[newPiece];
     }
 }
 

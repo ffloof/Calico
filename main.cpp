@@ -6,7 +6,7 @@
 #include <chrono>
 #include <fstream>
 
-board uciBoard = newBoard();
+board uciBoard;
 
 std::vector<uint64_t> unrollMoveStr(board* b,std::string remainingMoves){
     if (remainingMoves == "") { 
@@ -26,6 +26,7 @@ int main(){
     std::vector<uint64_t> prevPositions;
     initZobrists();
     initPSQT();
+    uciBoard = newBoard();
     
     std::string line;
 
