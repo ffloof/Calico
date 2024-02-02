@@ -8,14 +8,14 @@
 
 board uciBoard = newBoard();
 
-std::vector<unsigned long long> unrollMoveStr(board* b,std::string remainingMoves){
+std::vector<uint64_t> unrollMoveStr(board* b,std::string remainingMoves){
     if (remainingMoves == "") { 
         uciBoard = *b;
-        std::vector<unsigned long long> posHistory = {};
+        std::vector<uint64_t> posHistory = {};
         return posHistory;
     }
     b = applyMoveStr(b, beforeWord(remainingMoves, " "));
-    std::vector<unsigned long long> posHistory = unrollMoveStr(b, afterWord(remainingMoves, " "));
+    std::vector<uint64_t> posHistory = unrollMoveStr(b, afterWord(remainingMoves, " "));
     if (posHistory.size() < 16) posHistory.push_back(b->getHash());
     delete b;
 
@@ -23,7 +23,7 @@ std::vector<unsigned long long> unrollMoveStr(board* b,std::string remainingMove
 }
 
 int main(){
-    std::vector<unsigned long long> prevPositions;
+    std::vector<uint64_t> prevPositions;
     initZobrists();
     initPSQT();
     
@@ -76,7 +76,7 @@ int main(){
                 }
             }
         } else if (command == "prev") {
-            for (unsigned long long u : prevPositions) {
+            for (uint64_t u : prevPositions) {
                 std::cout << "hash" << u << std::endl;
             }
         }

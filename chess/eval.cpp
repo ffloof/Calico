@@ -132,5 +132,5 @@ int evaluate(board* b) {
     int score = ((truePhase * b->earlyScore) + ((44-truePhase)*b->lateScore))/44; 
 
     if (!b->whiteToMove) score = -score;
-    return score + 10; // tempobonus
+    return score + 10 -b->mobilities[0] + b->mobilities[1]; // tempobonus
 }

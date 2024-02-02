@@ -10,8 +10,8 @@ const int CAPTURE_PRIORITY   = 100000000;
 struct searcher {
     int nodes;
     int ply;
-    std::vector<unsigned long long> prev;
-    unsigned long long repetition[255];
+    std::vector<uint64_t> prev;
+    uint64_t repetition[255];
     int64_t history[2][128][128];
     std::chrono::time_point<std::chrono::steady_clock> startTime;
     int timeAlloc;
@@ -19,7 +19,7 @@ struct searcher {
 
     // TODO: add evals here
 
-    void push(unsigned long long hash){
+    void push(uint64_t hash){
         repetition[ply] = hash;
         nodes++;
         ply += 1;
@@ -29,7 +29,7 @@ struct searcher {
         ply -= 1;
     }
 
-    bool isRepetition(unsigned long long hash){
+    bool isRepetition(uint64_t hash){
         if (ply == 0) return false;
 
         for(int i=0;i<ply;i++){
@@ -120,7 +120,7 @@ struct searcher {
 
         bool pv = beta > alpha + 1;
 
-        unsigned long long hash = b->getHash();
+        uint64_t hash = b->getHash();
         if (isRepetition(hash)) return DRAW_SCORE;
         push(hash);
 
@@ -255,7 +255,7 @@ struct searcher {
     }
 };
 
-void iterativeSearch(board* b, int searchTime, std::vector<unsigned long long> prevHashs) {
+void iterativeSearch(board* b, int searchTime, std::vector<uint64_t> prevHashs) {
     searcher s = searcher{};
     s.startTime = std::chrono::steady_clock::now();
     s.timeAlloc = searchTime;

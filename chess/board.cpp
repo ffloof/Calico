@@ -5,6 +5,17 @@
 #include <vector>
 #include <random>
 
+/*
+23444432
+34666643
+46888864
+46888864
+46888864
+46888864
+34666643
+23444432
+*/
+
 const int color[2] = {-1,1};
 const int N = -16, S = 16, W = -1, E = 1;
 const int8_t EMPTY = 0, PAWN = 1, KNIGHT = 2, BISHOP = 3, ROOK = 4, QUEEN = 5, KING = 6;
@@ -60,11 +71,12 @@ struct board {
     int8_t squares[128];
     int kings[2]; 
     int enpassant;
-    unsigned long long hash;
+    uint64_t hash;
     bool shortCastle[2];
     bool longCastle[2];
     bool whiteToMove;
     bool inCheck;
+    int mobilities[2];
 
     int earlyScore;
     int lateScore;
@@ -74,6 +86,7 @@ struct board {
         std::vector<move> moves = {};
 
         int advance = N * color[whiteToMove];
+        int sideMobility = 0;
 
         for (int i=0; i<128; i++) {
             if (squares[i] == EMPTY) continue;
@@ -92,19 +105,19 @@ struct board {
                     }
                     break;
                 case KNIGHT:
-                    PieceMoves(&moves, i, std::vector<int>{N+N+W,N+N+E,S+S+W,S+S+E,W+W+N,W+W+S,E+E+N,E+E+S}, false, capturesOnly);
+                    sideMobility += PieceMoves(&moves, i, std::vector<int>{N+N+W,N+N+E,S+S+W,S+S+E,W+W+N,W+W+S,E+E+N,E+E+S}, false, capturesOnly);
                     break;
                 case BISHOP:
-                    PieceMoves(&moves, i, std::vector<int>{N+W,N+E,S+W,S+E}, true, capturesOnly);
+                    sideMobility += PieceMoves(&moves, i, std::vector<int>{N+W,N+E,S+W,S+E}, true, capturesOnly);
                     break;
                 case ROOK:
-                    PieceMoves(&moves, i, std::vector<int>{N,S,E,W}, true, capturesOnly);
+                    sideMobility += PieceMoves(&moves, i, std::vector<int>{N,S,E,W}, true, capturesOnly);
                     break;
                 case QUEEN:
-                    PieceMoves(&moves, i, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, true, capturesOnly);
+                    sideMobility += PieceMoves(&moves, i, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, true, capturesOnly);
                     break;
                 case KING:
-                    PieceMoves(&moves, i, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, false, capturesOnly);
+                    sideMobility += PieceMoves(&moves, i, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, false, capturesOnly);
                     break;
             }
         }        
@@ -131,16 +144,20 @@ struct board {
             }
         }
 
+        mobilities[whiteToMove] = sideMobility;
         return moves;
     }
 
-    void PieceMoves(std::vector<move>* moves, int start, std::vector<int> pattern, bool ray, bool capturesOnly){
+    int PieceMoves(std::vector<move>* moves, int start, std::vector<int> pattern, bool ray, bool capturesOnly) {
+        int mobility = 0;
         for (int direction: pattern) {
             for (int end=start+direction; valid(end); end+=direction) {
                 addMove(moves, start, end, capturesOnly);
+                mobility++;
                 if (squares[end] != EMPTY || !ray) break;
             }
         }
+        return mobility;
     }
 
     void addPawnMove(std::vector<move>* moves, int start, int end, bool capturesOnly) {
@@ -196,7 +213,7 @@ struct board {
     }
 
     // Defined in table.cpp
-    unsigned long long getHash();
+    uint64_t getHash();
     void updateHash(int index, int8_t piece);
 
     // Defined in eval.cpp

@@ -1,8 +1,8 @@
-unsigned long long zobrist[13][128];
-unsigned long long zobristEP[128];
-unsigned long long zobristSTM[2];
-unsigned long long zobristCastleS[2][2];
-unsigned long long zobristCastleL[2][2];
+uint64_t zobrist[13][128];
+uint64_t zobristEP[128];
+uint64_t zobristSTM[2];
+uint64_t zobristCastleS[2][2];
+uint64_t zobristCastleL[2][2];
 
 void initZobrists(){
     std::random_device rd;
@@ -22,7 +22,7 @@ void initZobrists(){
     }
 }
 
-unsigned long long board::getHash(){
+uint64_t board::getHash(){
     // We add to the hash the sidetomove, enpassant, and castling rights
     // You could also try to keep these updated incrementally but I am too lazy
     return (hash ^ zobristEP[enpassant] ^ zobristSTM[whiteToMove] ^ zobristCastleS[0][shortCastle[0]] ^ zobristCastleS[1][shortCastle[1]] ^ zobristCastleL[0][longCastle[0]] ^ zobristCastleL[1][longCastle[1]]);
@@ -33,7 +33,7 @@ void board::updateHash(int index, int8_t piece){
 }
 
 struct ttentry {
-    unsigned long long fullHash;
+    uint64_t fullHash;
     int16_t score;
     int16_t depth; 
     move tableMove;
@@ -46,14 +46,14 @@ const int tsize = 20000000;
 
 ttentry ttable[20000000] = {};
 
-ttentry* tableget(unsigned long long key) {
+ttentry* tableget(uint64_t key) {
     ttentry* e = &ttable[key % tsize];
     if (e->fullHash == key) return e;
     return nullptr;
 }
 
 void tableset(board* b, move m, int16_t depth, int16_t score, int8_t bound) {
-    unsigned long long key = b->getHash();
+    uint64_t key = b->getHash();
     ttable[key % tsize] = ttentry{key, score, depth, m, bound};
 }
 
