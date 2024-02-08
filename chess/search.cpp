@@ -272,12 +272,7 @@ void iterativeSearch(board* b, int searchTime, std::vector<uint64_t> prevHashs) 
     
     ttentry* tentry = tableget(b->getHash());
     int lastscore = 0;
-    if (tentry != nullptr) {
-        lastscore = tentry->score;
-        std::cout << "info depth " << tentry->depth << " score cp " << tentry->score << " time " << 1 << " nodes " << s.nodes << " ";
-        printpv(b);
-        std::cout << std::endl;
-    }
+    if (tentry != nullptr) lastscore = tentry->score;
 
     int depth;
     for(depth=1;depth<30;depth++){

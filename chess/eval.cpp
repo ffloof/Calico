@@ -1,10 +1,9 @@
 
 int phases[14] = {0,0,0,0,2,2,2,2,3,3,8,8,0};
-// 
 int earlyPieces[7] = {0, 100, 400, 440, 575, 1200, 0};
 int latePieces[7]  = {0, 100, 290, 320, 550, 1000, 0};
 
-int earlyPSQT[7][64] = {
+int earlyTable[7][64] = {
     {},
     { // Pawn
   0,   0,   0,   0,   0,   0,   0,   0,
@@ -68,7 +67,7 @@ int earlyPSQT[7][64] = {
     }
 };
 
-int latePSQT[7][64] = {
+int lateTable[7][64] = {
     {},
     {},
     {},
@@ -93,7 +92,7 @@ int latePST[14][128] = {};
 void initPSQT(){
     for(int x=1;x<6;x++){
         for(int y=0;y<64;y++) {
-            latePSQT[x][y] = earlyPSQT[x][y];
+            lateTable[x][y] = earlyTable[x][y];
         }
     }
 
@@ -102,10 +101,10 @@ void initPSQT(){
             int j = i^56;
             int idx_i = i + (i & ~7);
             int idx_j = j + (j & ~7);
-            earlyPST[(piecetype*2)+1][idx_i] = earlyPSQT[piecetype][i] + earlyPieces[piecetype];
-            latePST[(piecetype*2)+1][idx_i] = latePSQT[piecetype][i] + latePieces[piecetype];
-            earlyPST[(piecetype*2)][idx_i] = -(earlyPSQT[piecetype][j] + earlyPieces[piecetype]);
-            latePST[(piecetype*2)][idx_i] = -(latePSQT[piecetype][j] + latePieces[piecetype]);
+            earlyPST[(piecetype*2)+1][idx_i] = earlyTable[piecetype][i] + earlyPieces[piecetype];
+            latePST[(piecetype*2)+1][idx_i] = lateTable[piecetype][i] + latePieces[piecetype];
+            earlyPST[(piecetype*2)][idx_i] = -(earlyTable[piecetype][j] + earlyPieces[piecetype]);
+            latePST[(piecetype*2)][idx_i] = -(lateTable[piecetype][j] + latePieces[piecetype]);
         }
     }
 }
