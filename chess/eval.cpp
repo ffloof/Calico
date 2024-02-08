@@ -1,5 +1,5 @@
 
-int phases[7] = {0,0,2,2,3,8,0};
+int phases[14] = {0,0,0,0,2,2,2,2,3,3,8,8,0};
 // 
 int earlyPieces[7] = {0, 100, 400, 440, 575, 1200, 0};
 int latePieces[7]  = {0, 100, 290, 320, 550, 1000, 0};
@@ -11,8 +11,8 @@ int earlyPSQT[7][64] = {
  155, 170, 120, 125, 120, 145, 110,  95,
   45,  60,  60,  55,  65,  60,  60,  35,
   10,  20,  10,  10,  15,   5,  15,  -5,
- -10,   0,  -5,   5,  10,  -5,   5, -15,
- -15,   0,  -5,   0,   5,  -5,  15, -15,
+ -10,   0,   0,   5,  10,  -5,   5, -15,
+ -15,   0,  -5,  -5,  -5,  -5,  15, -15,
  -15,   0, -10, -10, -15,  10,  20, -15,
    0,   0,   0,   0,   0,   0,   0,   0,
     }, 
@@ -22,9 +22,9 @@ int earlyPSQT[7][64] = {
  -40,  20,  25,  40,  45,  65,  30,   0,
  -15,  10,  20,  40,  30,  45,  10,   0,
  -20,  -5,  15,  20,  20,  20,  10, -15,
- -30, -10,   5,  10,  15,   5,   0, -25,
+ -25, -10, -10,  10,  15,   5,   0, -25,
  -40, -40, -15,  -5,  -5,  -5, -20, -35,
- -80, -35, -45, -30, -25, -30, -40, -50,
+ -80, -30, -45, -30, -25, -30, -40, -50,
     },
     { // Bishop
  -25, -10, -55, -25, -20, -30,  -5, -20,
@@ -87,6 +87,9 @@ int latePSQT[7][64] = {
     },
 };
 
+int earlyPST[14][128] = {};
+int latePST[14][128] = {};
+
 void initPSQT(){
     for(int x=1;x<6;x++){
         for(int y=0;y<64;y++) {
@@ -94,43 +97,26 @@ void initPSQT(){
         }
     }
 
-    for(int x=0;x<7;x++){
-        for(int y=0;y<64;y++){
-            earlyPSQT[x][y] += earlyPieces[x];
-            latePSQT[x][y] += latePieces[x];
+    for(int piecetype=0;piecetype<=6;piecetype++) {
+        for(int i=0;i<64;i++){
+            int j = i^56;
+            int idx_i = i + (i & ~7);
+            int idx_j = j + (j & ~7);
+            earlyPST[(piecetype*2)+1][idx_i] = earlyPSQT[piecetype][i] + earlyPieces[piecetype];
+            latePST[(piecetype*2)+1][idx_i] = latePSQT[piecetype][i] + latePieces[piecetype];
+            earlyPST[(piecetype*2)][idx_i] = -(earlyPSQT[piecetype][j] + earlyPieces[piecetype]);
+            latePST[(piecetype*2)][idx_i] = -(latePSQT[piecetype][j] + latePieces[piecetype]);
         }
     }
 }
 
 void board::updateEval(int index, int8_t oldPiece, int8_t newPiece) {
-    int i = (index + (index & 7)) >> 1;
-
-    bool oldPieceWhite = oldPiece & 1;
-    bool newPieceWhite = newPiece & 1;
-
-
-    oldPiece = oldPiece / 2;
-    newPiece = newPiece / 2;
-
-    if (oldPieceWhite){
-        earlyScore -= earlyPSQT[oldPiece][i];
-        lateScore -= latePSQT[oldPiece][i];
-        phase -= phases[oldPiece];
-    } else {
-        earlyScore -= -earlyPSQT[oldPiece][i^56];
-        lateScore -= -latePSQT[oldPiece][i^56];
-        phase -= phases[oldPiece];
-    }
-
-    if (newPieceWhite){
-        earlyScore += earlyPSQT[newPiece][i];
-        lateScore += latePSQT[newPiece][i];
-        phase += phases[newPiece];
-    } else {
-        earlyScore += -earlyPSQT[newPiece][i^56];
-        lateScore += -latePSQT[newPiece][i^56];
-        phase += phases[newPiece];
-    }
+    earlyScore -= earlyPST[oldPiece][index];
+    lateScore -= latePST[oldPiece][index];
+    phase -= phases[oldPiece];
+    earlyScore += earlyPST[newPiece][index];
+    lateScore += latePST[newPiece][index];
+    phase += phases[newPiece];
 }
 
 int evaluate(board* b) {
@@ -138,6 +124,8 @@ int evaluate(board* b) {
     if (truePhase > 44) truePhase = 44;
     int score = ((truePhase * b->earlyScore) + ((44-truePhase)*b->lateScore))/44; 
 
+    score += -b->mobilities[0] + b->mobilities[1];
+
     if (!b->whiteToMove) score = -score;
-    return score + 10 -b->mobilities[0] + b->mobilities[1]; // tempobonus
+    return score + 10; // tempobonus
 }

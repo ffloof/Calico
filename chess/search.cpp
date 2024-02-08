@@ -12,7 +12,7 @@ struct searcher {
     int ply;
     std::vector<uint64_t> prev;
     uint64_t repetition[255];
-    int64_t history[2][128][128];
+    int64_t history[14][128];
     std::chrono::time_point<std::chrono::steady_clock> startTime;
     int timeAlloc;
 
@@ -172,19 +172,16 @@ struct searcher {
             return eval;
         }
 
-        /*
-        // Check extension
-        if (b->inCheck) depth += 1;
-        */
-
         for (int i=0;i<moves.size();i++){
             move m = moves[i];
             priorities[i] = (abs(b->squares[m.end]) * 8) - abs(b->squares[m.start]) + CAPTURE_PRIORITY;
-            priorities[i] += history[b->whiteToMove][m.start][m.end];
+            priorities[i] += history[b->squares[m.start]][m.end];
             if(m.start == tablemove.start && m.end == tablemove.end && m.flag == tablemove.flag) priorities[i] = TABLEMOVE_PRIORITY;
         }
 
         int legals = 0;
+        int quiets = 0;
+        int quietsToSearch = (depth * depth) - depth + 8;
         int bestScore = -20000;
         move bestMove;
         bool raisedAlpha = false;
@@ -215,7 +212,10 @@ struct searcher {
             } else {
                 //LMR
                 int reduction = ((legals / 16) + (depth / 6) + (legals > 4));
-                if ((b->squares[m.end] != EMPTY) || pv || b->inCheck) reduction = 0;
+                if ((b->squares[m.end] != EMPTY) || pv || b->inCheck) {
+                    reduction = 0;
+                    quiets += 1;
+                }
                 score = -alphabeta(nextBoard, -alpha-1, -alpha, depth-1-reduction);
                 if (score > alpha && reduction > 0) score = -alphabeta(nextBoard, -alpha-1, -alpha, depth-1);
                 if (score > alpha && pv) score = -alphabeta(nextBoard, -beta, -alpha, depth-1);
@@ -230,10 +230,14 @@ struct searcher {
                     raisedAlpha = true;
                     alpha = score;
                     if (score >= beta) { 
-                        if(b->squares[m.end] == EMPTY) history[b->whiteToMove][m.start][m.end] += depth * depth;
+                        if(b->squares[m.end] == EMPTY) history[b->squares[m.start]][m.end] += depth * depth;
                         break;
                     }
                 }
+            }
+
+            if (quiets > quietsToSearch) {
+                break;
             }
         }
 
@@ -263,14 +267,19 @@ void iterativeSearch(board* b, int searchTime, std::vector<uint64_t> prevHashs) 
     
     ttentry* tentry = tableget(b->getHash());
     int lastscore = 0;
-    if (tentry != nullptr) lastscore = tentry->score;
+    if (tentry != nullptr) {
+        lastscore = tentry->score;
+        std::cout << "info depth " << tentry->depth << " score cp " << tentry->score << " time " << 1 << " nodes " << s.nodes << " ";
+        printpv(b);
+        std::cout << std::endl;
+    }
 
     int depth;
     for(depth=1;depth<30;depth++){
         int score = s.alphabeta(b, lastscore - 30, lastscore + 30, depth);
-        if ((score < lastscore - 30) || (lastscore + 30 < score)) score = s.alphabeta(b, -MATE_SCORE, MATE_SCORE, depth);
+        if ((score <= (lastscore - 30)) || ((lastscore + 30) <= score)) score = s.alphabeta(b, -MATE_SCORE, MATE_SCORE, depth);
 
-        std::cout << "info depth " << depth << " cp " << score << " time " << s.ellapsedTime() << " nodes " << s.nodes << " ";
+        std::cout << "info depth " << depth << " score cp " << score << " time " << s.ellapsedTime() << " nodes " << s.nodes << " ";
         printpv(b);
         std::cout << std::endl;
         if (s.outOfTime() || score > 9000) break;  

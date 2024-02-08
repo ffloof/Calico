@@ -73,7 +73,7 @@ int main(){
                     totalTime = std::stoi(beforeWord(afterWord(arguments, "movetime"), " "));
                     iterativeSearch(&uciBoard, totalTime/2, prevPositions);
                 } catch(const std::invalid_argument& e) {
-                    iterativeSearch(&uciBoard, 10000, prevPositions);
+                    iterativeSearch(&uciBoard, 1000, prevPositions);
                 }
             }
         } else if (command == "prev") {

@@ -26,7 +26,6 @@ bool valid(int index) {
 }
 
 std::string squareToStr(int n){
-    if (!valid(n)) return "--";
     int rank = n >> 4;
     int file = n & 7;    
     return {char('a'+file),char('1'+(7-rank))};
@@ -38,19 +37,14 @@ int strToSquare(std::string str){
     return (rank << 4) | file;
 }
 
+const std::string pieceChars = "..pPnNbBrRqQkK";
+
 char pieceToChar(int8_t piece){
-    const std::string pieceChars = "..pPnNbBrRqQkK";
     return pieceChars[piece];
 }
 
 int8_t charToPiece(char c){
-    const std::map<char, int8_t> convert = {
-        {'p', PAWN}, {'n', KNIGHT}, {'b', BISHOP}, {'r', ROOK}, {'q', QUEEN}, {'k',KING},
-        {'P',PAWN+1}, {'N',KNIGHT+1}, {'B',BISHOP+1}, {'R',ROOK+1}, {'Q',QUEEN+1}, {'K',KING+1}
-    };
-
-    if (convert.count(c)) return convert.at(c);
-    return EMPTY;
+   return pieceChars.find(c);
 }
 
 struct move {
@@ -109,19 +103,19 @@ struct board {
                     }
                     break;
                 case KNIGHT:
-                    sideMobility += PieceMoves(&moves, i, std::vector<int>{N+N+W,N+N+E,S+S+W,S+S+E,W+W+N,W+W+S,E+E+N,E+E+S}, false, capturesOnly);
+                    PieceMoves(&moves, i, std::vector<int>{N+N+W,N+N+E,S+S+W,S+S+E,W+W+N,W+W+S,E+E+N,E+E+S}, false, capturesOnly);
                     break;
                 case BISHOP:
-                    sideMobility += PieceMoves(&moves, i, std::vector<int>{N+W,N+E,S+W,S+E}, true, capturesOnly);
+                    sideMobility += 2 * PieceMoves(&moves, i, std::vector<int>{N+W,N+E,S+W,S+E}, true, capturesOnly);
                     break;
                 case ROOK:
-                    sideMobility += PieceMoves(&moves, i, std::vector<int>{N,S,E,W}, true, capturesOnly);
+                    sideMobility += 3 * PieceMoves(&moves, i, std::vector<int>{N,S,E,W}, true, capturesOnly);
                     break;
                 case QUEEN:
-                    sideMobility += PieceMoves(&moves, i, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, true, capturesOnly);
+                    PieceMoves(&moves, i, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, true, capturesOnly);
                     break;
                 case KING:
-                    sideMobility += PieceMoves(&moves, i, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, false, capturesOnly);
+                    PieceMoves(&moves, i, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, false, capturesOnly);
                     break;
             }
         }        
@@ -220,17 +214,15 @@ struct board {
 
     // Defined in table.cpp
     uint64_t getHash();
-    void updateHash(int index, int8_t piece);
+    void updateHash(int index, int8_t oldPiece, int8_t newPiece);
 
     // Defined in eval.cpp
     void updateEval(int index, int8_t oldPiece, int8_t newPiece);
 
     void edit(int index, int8_t piece){
         int8_t oldPiece = squares[index];
-        updateHash(index, oldPiece);
-        updateHash(index, piece);
+        updateHash(index, oldPiece, piece);
         updateEval(index, oldPiece, piece);
-        
         squares[index] = piece;
     }
 

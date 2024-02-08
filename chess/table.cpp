@@ -9,7 +9,7 @@ void initZobrists(){
     std::mt19937_64 mt(rd());
     std::uniform_int_distribution<uint64_t> rng;
 
-    for(int x=0;x<16;x++){
+    for(int x=2;x<16;x++){
         for(int y=0;y<128;y++) zobrist[x][y] = rng(mt);
     }
 
@@ -28,8 +28,9 @@ uint64_t board::getHash(){
     return (hash ^ zobristEP[enpassant] ^ zobristSTM[whiteToMove] ^ zobristCastleS[0][shortCastle[0]] ^ zobristCastleS[1][shortCastle[1]] ^ zobristCastleL[0][longCastle[0]] ^ zobristCastleL[1][longCastle[1]]);
 }
 
-void board::updateHash(int index, int8_t piece){
-    if (piece != EMPTY) hash ^= zobrist[piece][index];
+void board::updateHash(int index, int8_t oldPiece, int8_t newPiece){
+    hash ^= zobrist[oldPiece][index];
+    hash ^= zobrist[newPiece][index];
 }
 
 struct ttentry {
