@@ -6,6 +6,7 @@ const int DRAW_SCORE = 0;
 
 const int TABLEMOVE_PRIORITY = 1000000000;
 const int CAPTURE_PRIORITY   = 100000000;
+const int KILLER_PRIORITY    = 10000000;
 
 struct searcher {
     int nodes;
@@ -13,6 +14,7 @@ struct searcher {
     std::vector<uint64_t> prev;
     uint64_t repetition[255];
     int64_t history[14][128];
+    move killers[64];
     std::chrono::time_point<std::chrono::steady_clock> startTime;
     int timeAlloc;
 
@@ -172,11 +174,13 @@ struct searcher {
             return eval;
         }
 
+        move killermove = killers[ply];
         for (int i=0;i<moves.size();i++){
             move m = moves[i];
             priorities[i] = (abs(b->squares[m.end]) * 8) - abs(b->squares[m.start]) + CAPTURE_PRIORITY;
             priorities[i] += history[b->squares[m.start]][m.end];
             if(m.start == tablemove.start && m.end == tablemove.end && m.flag == tablemove.flag) priorities[i] = TABLEMOVE_PRIORITY;
+            if(m.start == killermove.start && m.end == killermove.end && m.flag == killermove.flag) priorities[i] += KILLER_PRIORITY;
         }
 
         int legals = 0;
@@ -231,6 +235,7 @@ struct searcher {
                     alpha = score;
                     if (score >= beta) { 
                         if(b->squares[m.end] == EMPTY) history[b->squares[m.start]][m.end] += depth * depth;
+                        killers[ply] = m;
                         break;
                     }
                 }
@@ -276,8 +281,8 @@ void iterativeSearch(board* b, int searchTime, std::vector<uint64_t> prevHashs) 
 
     int depth;
     for(depth=1;depth<30;depth++){
-        int score = s.alphabeta(b, lastscore - 30, lastscore + 30, depth);
-        if ((score <= (lastscore - 30)) || ((lastscore + 30) <= score)) score = s.alphabeta(b, -MATE_SCORE, MATE_SCORE, depth);
+        int score = s.alphabeta(b, lastscore - 25, lastscore + 25, depth);
+        if ((score <= (lastscore - 25)) || ((lastscore + 25) <= score)) score = s.alphabeta(b, -MATE_SCORE, MATE_SCORE, depth);
 
         std::cout << "info depth " << depth << " score cp " << score << " time " << s.ellapsedTime() << " nodes " << s.nodes << " ";
         printpv(b);
