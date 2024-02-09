@@ -13,7 +13,7 @@ struct searcher {
     int ply;
     std::vector<uint64_t> prev;
     uint64_t repetition[255];
-    int64_t history[14][128];
+    int64_t history[14][120];
     move killers[64];
     std::chrono::time_point<std::chrono::steady_clock> startTime;
     int timeAlloc;

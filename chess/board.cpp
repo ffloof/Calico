@@ -17,27 +17,23 @@
 */
 
 const int color[2] = {-1,1};
-const int N = -16, S = 16, W = -1, E = 1;
-const int8_t EMPTY = 0, PAWN = 2, KNIGHT = 4, BISHOP = 6, ROOK = 8, QUEEN = 10, KING = 12;
-const int A8 = 0, H8 = 7, A1 = 112, H1 = 119; 
-
-bool valid(int index) {
-    return (index & 0x88) == 0;
-}
+const int N = -10, S = 10, W = -1, E = 1;
+const int8_t EMPTY = 0, BORDER = 1, PAWN = 2, KNIGHT = 4, BISHOP = 6, ROOK = 8, QUEEN = 10, KING = 12;
+const int A8 = 21, H8 = 28, A1 = 91, H1 = 98; 
 
 std::string squareToStr(int n){
-    int rank = n >> 4;
-    int file = n & 7;    
+    int rank = (n / 10)-2;
+    int file = (n % 10)-1;    
     return {char('a'+file),char('1'+(7-rank))};
 }
 
 int strToSquare(std::string str){
     int file = str[0] - 'a';
     int rank = 7-(str[1] - '1');
-    return (rank << 4) | file;
+    return (rank * 10) + file + A8;
 }
 
-const std::string pieceChars = "..pPnNbBrRqQkK";
+const std::string pieceChars = ".-pPnNbBrRqQkK";
 
 char pieceToChar(int8_t piece){
     return pieceChars[piece];
@@ -62,7 +58,7 @@ struct move {
 move NULLMOVE = move{9,9,EMPTY};
 
 struct board {
-    int8_t squares[128];
+    int8_t squares[120];
     int kings[2]; 
     int enpassant;
     uint64_t hash;
@@ -82,8 +78,8 @@ struct board {
         int advance = N * color[whiteToMove];
         int sideMobility = 0;
 
-        for (int i=0; i<128; i++) {
-            if (squares[i] == EMPTY) continue;
+        for (int i=0; i<120; i++) {
+            if (squares[i] == EMPTY || squares[i] == BORDER) continue;
             if ((squares[i] & 1) != whiteToMove) continue;
 
             int8_t piecetype = squares[i] & 14;
@@ -147,9 +143,9 @@ struct board {
     int PieceMoves(std::vector<move>* moves, int start, std::vector<int> pattern, bool ray, bool capturesOnly) {
         int mobility = 0;
         for (int direction: pattern) {
-            for (int end=start+direction; valid(end); end+=direction) {
+            for (int end=start+direction; true; end+=direction) {
                 addMove(moves, start, end, capturesOnly);
-                mobility++;
+                mobility++; // TODO: don't increase mobility if it is border or a friendly piece on square
                 if (squares[end] != EMPTY || !ray) break;
             }
         }
@@ -167,7 +163,7 @@ struct board {
 
     void addMove(std::vector<move>* moves, int8_t start, int8_t end, bool capturesOnly, int8_t flag=EMPTY) {
         
-        if (!valid(end)) return;
+        if (squares[end] == BORDER) return;
         if (capturesOnly && squares[end] == EMPTY) return;
         if (squares[end] != EMPTY && (whiteToMove == (squares[end] & 1))) return;
 
@@ -175,13 +171,13 @@ struct board {
     }
 
     bool isHomeRow(int index) {
-        int rank = index >> 4;
+        int rank = (index / 10)-2;
         if (whiteToMove) return rank == 6;
         return rank == 1;
     }
 
     bool isPromotionRow(int index) {
-        int rank = index >> 4;
+        int rank = (index / 10) - 2;
         if (whiteToMove) return rank == 0;
         return rank == 7;
     }
@@ -201,7 +197,7 @@ struct board {
 
     bool scan(int8_t find, int start, std::vector<int> pattern, bool ray){
         for (int direction: pattern) {
-            for (int end = start + direction; valid(end); end += direction) {
+            for (int end = start + direction; true; end += direction) {
                 int8_t piece = squares[end];
                 if (piece == find) return true;
                 if (!ray || piece != EMPTY) break;
@@ -225,12 +221,14 @@ struct board {
     }
 
     void print(){
-        for (int i=0;i<128;i++){
-            if (i%16 == 15) std::cout << std::endl;
-            if (i == enpassant && enpassant != 0) std::cout << "-";
-            else if (i%16 < 8) std::cout << pieceToChar(squares[i]);
+        for (int i=0;i<120;i++){
+            if (i == enpassant && enpassant != 0) std::cout << "x";
+            else std::cout << pieceToChar(squares[i]);
+            if (i%10 == 9) std::cout << std::endl;
         }
         std::cout << getHash() << std::endl;
+        std::cout << earlyScore << std::endl;
+        std::cout << lateScore << std::endl;
     }
 };
 
@@ -326,12 +324,25 @@ std::string afterWord(std::string str, std::string word) {
 
 // TODO: make this a proper constructor
 board newBoard(std::string fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") {
-    const std::map<char, int8_t> charToOffset = {{'/', 8},{'1', 1},{'2', 2},{'3', 3},{'4', 4},{'5', 5},{'6', 6},{'7', 7},{'8', 8},};
-    board b = board{};    
+    const std::map<char, int8_t> charToOffset = {{'/', 2},{'1', 1},{'2', 2},{'3', 3},{'4', 4},{'5', 5},{'6', 6},{'7', 7},{'8', 8},};
+    board b = board{.squares= {
+        1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,1,1,
+        1,0,0,0,0,0,0,0,0,1,
+        1,0,0,0,0,0,0,0,0,1,
+        1,0,0,0,0,0,0,0,0,1,
+        1,0,0,0,0,0,0,0,0,1,
+        1,0,0,0,0,0,0,0,0,1,
+        1,0,0,0,0,0,0,0,0,1,
+        1,0,0,0,0,0,0,0,0,1,
+        1,0,0,0,0,0,0,0,0,1,
+        1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,1,1,
+    }};    
 
     std::string position = beforeWord(fen, " ");
 
-    int8_t i = 0;
+    int8_t i = A8;
     for (char pchar : position) {
         if (charToOffset.count(pchar)) {
             i += charToOffset.at(pchar);

@@ -1,4 +1,15 @@
 
+int mailbox[64] = {
+    21, 22, 23, 24, 25, 26, 27, 28,
+    31, 32, 33, 34, 35, 36, 37, 38,
+    41, 42, 43, 44, 45, 46, 47, 48,
+    51, 52, 53, 54, 55, 56, 57, 58,
+    61, 62, 63, 64, 65, 66, 67, 68,
+    71, 72, 73, 74, 75, 76, 77, 78,
+    81, 82, 83, 84, 85, 86, 87, 88,
+    91, 92, 93, 94, 95, 96, 97, 98
+};
+
 int phases[14] = {0,0,0,0,2,2,2,2,3,3,8,8,0};
 int earlyPieces[7] = {0, 100, 400, 440, 575, 1200, 0};
 int latePieces[7]  = {0, 100, 290, 320, 550, 1000, 0};
@@ -9,9 +20,9 @@ int earlyTable[7][64] = {
   0,   0,   0,   0,   0,   0,   0,   0,
  155, 170, 120, 125, 120, 145, 110,  95,
   45,  60,  60,  55,  65,  60,  60,  35,
-  10,  20,  10,  10,  15,   5,  15,  -5,
- -10,   0,   0,   5,  10,  -5,   5, -15,
- -15,   0,  -5,  -5,  -5,  -5,  15, -15,
+  10,  20,  10,  15,  20,   5,  15,  -5,
+ -10,   0,   0,   5,  10,   0,   5, -15,
+ -15,   0,   0,  -5,  -5,  -5,  15, -15,
  -15,   0, -10, -10, -15,  10,  20, -15,
    0,   0,   0,   0,   0,   0,   0,   0,
     }, 
@@ -86,8 +97,8 @@ int lateTable[7][64] = {
     },
 };
 
-int earlyPST[14][128] = {};
-int latePST[14][128] = {};
+int earlyPST[14][120] = {};
+int latePST[14][120] = {};
 
 void initPSQT(){
     for(int x=1;x<6;x++){
@@ -98,13 +109,12 @@ void initPSQT(){
 
     for(int piecetype=0;piecetype<=6;piecetype++) {
         for(int i=0;i<64;i++){
-            int j = i^56;
-            int idx_i = i + (i & ~7);
-            int idx_j = j + (j & ~7);
-            earlyPST[(piecetype*2)+1][idx_i] = earlyTable[piecetype][i] + earlyPieces[piecetype];
-            latePST[(piecetype*2)+1][idx_i] = lateTable[piecetype][i] + latePieces[piecetype];
-            earlyPST[(piecetype*2)][idx_i] = -(earlyTable[piecetype][j] + earlyPieces[piecetype]);
-            latePST[(piecetype*2)][idx_i] = -(lateTable[piecetype][j] + latePieces[piecetype]);
+            int idx_white = mailbox[i];
+            int idx_black = mailbox[i^56];
+            earlyPST[(piecetype*2)+1][idx_white] = earlyTable[piecetype][i] + earlyPieces[piecetype];
+            latePST[(piecetype*2)+1][idx_white] = lateTable[piecetype][i] + latePieces[piecetype];
+            earlyPST[(piecetype*2)][idx_black] = -(earlyTable[piecetype][i] + earlyPieces[piecetype]);
+            latePST[(piecetype*2)][idx_black] = -(lateTable[piecetype][i] + latePieces[piecetype]);
         }
     }
 }
