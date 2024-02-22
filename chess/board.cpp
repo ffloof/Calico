@@ -55,7 +55,7 @@ struct move {
     }
 };
 
-move NULLMOVE = move{9,9,EMPTY};
+move NULLMOVE = move{};
 
 struct board {
     int8_t squares[120];
@@ -76,27 +76,29 @@ struct board {
     std::vector<move> GenerateMoves(bool capturesOnly=false){
         std::vector<move> moves = {};
 
-        int advance = N * color[whiteToMove];
+        int advance = whiteToMove ? N : S;
         int sideMobility = 0;
 
-        for (int i=0; i<120; i++) {
-            if (squares[i] == EMPTY || squares[i] == BORDER) continue;
-            if ((squares[i] & 1) != whiteToMove) continue;
+        for (int i=A8; i<=H1; i++) {
+            int8_t piece = squares[i];
+            if (piece < PAWN) continue;
+            if ((piece & 1) != whiteToMove) continue;
 
-            int8_t piecetype = squares[i] & 14;
+            int8_t piecetype = piece & 14;
 
             switch(piecetype){
-                
-                case PAWN:
-                    addPawnMove(&moves, i, i+advance+W, true);
-                    addPawnMove(&moves, i, i+advance+E, true);
+                case PAWN: {
+                    bool willPromote = isPromotionRow(i+advance);   
+                    addPawnMove(&moves, i, i+advance+W, true, willPromote);
+                    addPawnMove(&moves, i, i+advance+E, true, willPromote);
                     if (squares[i+advance] == EMPTY) {
-                        addPawnMove(&moves, i, i+advance, capturesOnly);
+                        addPawnMove(&moves, i, i+advance, capturesOnly, willPromote);
                         if (squares[i+advance+advance] == EMPTY && isHomeRow(i)) {
                             addMove(&moves, i, i+advance+advance, capturesOnly);
                         }
                     }
                     break;
+                    }
                 case KNIGHT:
                     PieceMoves(&moves, i, std::vector<int>{N+N+W,N+N+E,S+S+W,S+S+E,W+W+N,W+W+S,E+E+N,E+E+S}, false, capturesOnly);
                     break;
@@ -153,19 +155,16 @@ struct board {
         return mobility;
     }
 
-    void addPawnMove(std::vector<move>* moves, int start, int end, bool capturesOnly) {
-        if (isPromotionRow(end)) {
+    void addPawnMove(std::vector<move>* moves, int start, int end, bool capturesOnly, bool willPromote) {
+        if (willPromote) {
             for (int8_t promotion : std::vector<int8_t>{QUEEN, ROOK, KNIGHT, BISHOP}) 
                 addMove(moves, start, end, capturesOnly, promotion);
-            return;
-        }
-        addMove(moves, start, end, capturesOnly);
+        } else addMove(moves, start, end, capturesOnly);
     }
 
     void addMove(std::vector<move>* moves, int8_t start, int8_t end, bool capturesOnly, int8_t flag=EMPTY) {
-        
-        if (squares[end] == BORDER) return;
         if (capturesOnly && squares[end] == EMPTY) return;
+        if (squares[end] == BORDER) return;
         if (squares[end] != EMPTY && (whiteToMove == (squares[end] & 1))) return;
 
         moves->push_back(move{start,end,flag});
@@ -200,8 +199,10 @@ struct board {
         for (int direction: pattern) {
             for (int end = start + direction; true; end += direction) {
                 int8_t piece = squares[end];
-                if (piece == find) return true;
-                if (!ray || piece != EMPTY) break;
+                if (!ray || piece != EMPTY) {
+                    if (piece == find) return true;
+                    break;
+                }
             }
         }
         return false;
