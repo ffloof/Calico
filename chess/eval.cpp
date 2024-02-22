@@ -131,10 +131,34 @@ void board::updateEval(int index, int8_t oldPiece, int8_t newPiece) {
 int evaluate(board* b) {
     int truePhase = b->phase;
     if (truePhase > 44) truePhase = 44;
-    int score = ((truePhase * b->earlyScore) + ((44-truePhase)*b->lateScore))/44; 
 
+    // king safety
+    int wKingFile = b->kings[1] % 10;
+    int bKingFile = b->kings[0] % 10;
+
+    int earlyScore = b->earlyScore;
+
+    for (int i=-1;i<=1;i++){
+        if (b->pawnCounts[0][wKingFile + i] == 0) earlyScore -= 10; // black has open file towards white king
+        if (b->pawnCounts[1][wKingFile + i] == 0) earlyScore -= 20; // white king pawn shield broken
+        if (b->pawnCounts[0][bKingFile + i] == 0) earlyScore += 20; // black king pawn shield broken 
+        if (b->pawnCounts[1][bKingFile + i] == 0) earlyScore += 10; // white has open file towards black king
+    }
+
+
+
+    int score = ((truePhase * earlyScore) + ((44-truePhase)*b->lateScore))/44; 
+
+    // pawn structure
+    for (int i=1;i<=8;i++) {
+        // Isolated pawns
+        if ((b->pawnCounts[0][i-1] == 0) && (b->pawnCounts[0][i+1] == 0)) score += b->pawnCounts[0][i] * 15;
+        if ((b->pawnCounts[1][i-1] == 0) && (b->pawnCounts[1][i+1] == 0)) score -= b->pawnCounts[1][i] * 15;
+    }
+
+    // mobility
     score += -b->mobilities[0] + b->mobilities[1];
-
+    
     if (!b->whiteToMove) score = -score;
     return score + 10; // tempobonus
 }

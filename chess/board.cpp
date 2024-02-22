@@ -51,7 +51,7 @@ struct move {
     void print(){
         std::cout << squareToStr(start); 
         std::cout << squareToStr(end);
-        if (flag != EMPTY) std::cout << pieceToChar(-flag);
+        if (flag != EMPTY) std::cout << pieceToChar(flag&14);
     }
 };
 
@@ -59,6 +59,7 @@ move NULLMOVE = move{9,9,EMPTY};
 
 struct board {
     int8_t squares[120];
+    int8_t pawnCounts[2][10];
     int kings[2]; 
     int enpassant;
     uint64_t hash;
@@ -213,11 +214,15 @@ struct board {
     // Defined in eval.cpp
     void updateEval(int index, int8_t oldPiece, int8_t newPiece);
 
-    void edit(int index, int8_t piece){
+    void edit(int index, int8_t newPiece){
         int8_t oldPiece = squares[index];
-        updateHash(index, oldPiece, piece);
-        updateEval(index, oldPiece, piece);
-        squares[index] = piece;
+        updateHash(index, oldPiece, newPiece);
+        updateEval(index, oldPiece, newPiece);
+        if (oldPiece == PAWN) pawnCounts[0][index%10] -= 1;
+        if (oldPiece == PAWN+1) pawnCounts[1][index%10] -= 1;
+        if (newPiece == PAWN) pawnCounts[0][index%10] += 1;
+        if (newPiece == PAWN+1) pawnCounts[1][index%10] += 1;
+        squares[index] = newPiece;
     }
 
     void print(){

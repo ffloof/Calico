@@ -96,6 +96,13 @@ struct searcher {
             std::swap(moves[i],moves[bestIndex]);
             std::swap(priorities[i],priorities[bestIndex]);
 
+            int deltas[] = {0,150,500,500,700,1500,0};
+            int delta = deltas[b->squares[m.end]/2];
+
+            if (standpat + deltas[victim] <= alpha) {
+                continue;
+            }
+
             board* nextBoard = apply(b,m);
             if (nextBoard == nullptr) continue;
             legals++;
