@@ -66,19 +66,19 @@ struct searcher {
             }   
         }
 
-
+        
         int standpat = evaluate(b);
-        if (standpat > alpha) {
-            alpha = standpat;
-            if (alpha >= beta) return alpha;
+        int bestScore = standpat;
+        if (bestScore >= beta) {
+            return bestScore;
         }
         
-        std::vector<move> moves = b->GeneratesMoves(true);
+        std::vector<move> moves = b->GenerateMoves(true);
         std::vector<int> priorities(moves.size());
 
         for (int i=0;i<moves.size();i++){
             move m = moves[i];
-            priorities[i] = (abs(b->squares[m.end]) * 8) - abs(b->squares[m.start]) + 10;
+            priorities[i] = (b->squares[m.end] * 16) - b->squares[m.start] + 16;
         }
 
         int legals = 0;
@@ -96,13 +96,6 @@ struct searcher {
             std::swap(moves[i],moves[bestIndex]);
             std::swap(priorities[i],priorities[bestIndex]);
 
-            int deltas[] = {0,150,500,500,700,1500,0};
-            int delta = deltas[b->squares[m.end]/2];
-
-            if (standpat + deltas[victim] <= alpha) {
-                continue;
-            }
-
             board* nextBoard = apply(b,m);
             if (nextBoard == nullptr) continue;
             legals++;
@@ -111,15 +104,17 @@ struct searcher {
             int score = -qsearch(nextBoard, -beta, -alpha);
             delete nextBoard;
 
+            if (score > bestScore) {
+                bestScore = score;
+            }
+
             if (score > alpha) {
                 alpha = score;
                 if (score >= beta) break;
             }
         }
-
-        //if (b->inCheck) return alpha - 50;
         
-        return alpha;
+        return bestScore;
     }
 
     int alphabeta(board* b, int alpha, int beta, int depth){
@@ -155,8 +150,13 @@ struct searcher {
             }
         }
         
-        
         int eval = evaluate(b);
+
+        // Reverse futility pruning
+        if (!pv && !b->inCheck && depth <= 5 && eval >= beta + (125*depth)) {
+            pop();
+            return eval;
+        }
 
         // Null move pruning
         if (!pv && depth >= 2 && eval >= beta && b->phase > 8) {
@@ -172,27 +172,22 @@ struct searcher {
             }
         }
 
-        std::vector<move> moves = b->GeneratesMoves();
+        
+
+        std::vector<move> moves = b->GenerateMoves();
         std::vector<int> priorities(moves.size());
-
-        // Reverse futility pruning
-        if (!pv && !b->inCheck && depth < 5 && eval >= beta + (125*depth)) {
-            pop();
-            return eval;
-        }
-
         move killermove = killers[ply];
         for (int i=0;i<moves.size();i++){
             move m = moves[i];
-            priorities[i] = (abs(b->squares[m.end]) * 8) - abs(b->squares[m.start]) + CAPTURE_PRIORITY;
+            priorities[i] = (b->squares[m.end] * 16) - b->squares[m.start] + CAPTURE_PRIORITY;
             priorities[i] += history[b->squares[m.start]][m.end];
             if(m.start == tablemove.start && m.end == tablemove.end && m.flag == tablemove.flag) priorities[i] = TABLEMOVE_PRIORITY;
             if(m.start == killermove.start && m.end == killermove.end && m.flag == killermove.flag) priorities[i] += KILLER_PRIORITY;
         }
 
         int legals = 0;
-        int quiets = 0;
-        int quietsToSearch = (depth * depth) - depth + 8;
+        int quietsLeft = (depth * depth) - depth + 6;
+        if (pv) quietsLeft = 100;
         int bestScore = -20000;
         move bestMove;
         bool raisedAlpha = false;
@@ -225,7 +220,8 @@ struct searcher {
                 int reduction = ((legals / 16) + (depth / 6) + (legals > 4));
                 if ((b->squares[m.end] != EMPTY) || pv || b->inCheck) {
                     reduction = 0;
-                    quiets += 1;
+                } else {
+                    quietsLeft -= 1;
                 }
                 score = -alphabeta(nextBoard, -alpha-1, -alpha, depth-1-reduction);
                 if (score > alpha && reduction > 0) score = -alphabeta(nextBoard, -alpha-1, -alpha, depth-1);
@@ -248,7 +244,7 @@ struct searcher {
                 }
             }
 
-            if (quiets > quietsToSearch) {
+            if (quietsLeft <= 0) {
                 break;
             }
         }

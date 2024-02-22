@@ -73,7 +73,7 @@ struct board {
     int lateScore;
     int phase;
 
-    std::vector<move> GeneratesMoves(bool capturesOnly=false){
+    std::vector<move> GenerateMoves(bool capturesOnly=false){
         std::vector<move> moves = {};
 
         int advance = N * color[whiteToMove];
@@ -382,7 +382,7 @@ int perft(board* b, int depth){
 
     int nodes = 0;
 
-    std::vector<move> moves = b->GeneratesMoves();
+    std::vector<move> moves = b->GenerateMoves();
     for (move m : moves) {
         board* nextBoard = apply(b, m);        
         if (nextBoard != nullptr) nodes += perft(nextBoard, depth-1);
@@ -397,6 +397,6 @@ board* applyMoveStr(board* b, std::string moveStr){
     int8_t start = strToSquare(moveStr.substr(0,2));
     int8_t end = strToSquare(moveStr.substr(2,4));
     int8_t flag = EMPTY;
-    if(moveStr.length() == 5) flag = abs(charToPiece(moveStr[4]));
+    if(moveStr.length() == 5) flag = (charToPiece(moveStr[4]) | b->whiteToMove);
     return apply(b, move{start,end,flag});
 }
