@@ -118,7 +118,7 @@ struct board {
         }        
 
         if (enpassant != 0) {
-            for (int8_t origin : std::vector<int>{enpassant-advance+W, enpassant-advance+E}) {
+            for (int8_t origin : {enpassant-advance+W, enpassant-advance+E}) {
                 if (squares[origin] == PAWN + whiteToMove) {
                     addMove(&moves, origin, enpassant, capturesOnly);
                 }
@@ -131,10 +131,10 @@ struct board {
         inCheck = attacked(kingIdx);
 
         if (!capturesOnly && !inCheck) {
-            if (canShortCastle && squares[kingIdx + E] == EMPTY && squares[kingIdx + E + E] == EMPTY && !attacked(kingIdx + E)) {
+            if (canShortCastle && squares[kingIdx + E] == EMPTY && squares[kingIdx + E + E] == EMPTY) {
                 addMove(&moves, kingIdx, kingIdx+E+E, false);
             }
-            if (canLongCastle && squares[kingIdx + W] == EMPTY && squares[kingIdx + W + W] == EMPTY && squares[kingIdx + W + W + W] == EMPTY && !attacked(kingIdx + W)) {
+            if (canLongCastle && squares[kingIdx + W] == EMPTY && squares[kingIdx + W + W] == EMPTY && squares[kingIdx + W + W + W] == EMPTY) {
                 addMove(&moves, kingIdx, kingIdx+W+W, false);
             }
         }
@@ -265,20 +265,29 @@ board* apply(board* oldBoard, move m){
     cBoard->edit(m.end, movingPiece);
     cBoard->edit(m.start, EMPTY);
 
-    if ((movingPiece & 14) == KING) {
-        cBoard->kings[isWhite] = m.end;
-        cBoard->longCastle[isWhite] = false;
-        cBoard->shortCastle[isWhite] = false;
+    if ((movingPiece & 14) == KING) { 
         if (m.end - m.start == W + W) {
+            if (cBoard->attacked(cBoard->kings[isWhite]+W)) {
+                delete cBoard;
+                return nullptr;
+            }
             //CASTLE LONG
             cBoard->edit(m.end + W + W, EMPTY);
             cBoard->edit(m.end + E, ROOK+isWhite);
         }
         if (m.end - m.start == E + E) {
+            if (cBoard->attacked(cBoard->kings[isWhite]+E)) {
+                delete cBoard;
+                return nullptr;
+            }
             //CASTLE SHORT
             cBoard->edit(m.end + E, EMPTY);
             cBoard->edit(m.end + W, ROOK+isWhite);
         }
+        
+        cBoard->longCastle[isWhite] = false;
+        cBoard->shortCastle[isWhite] = false;
+        cBoard->kings[isWhite] = m.end;
     }
 
     
