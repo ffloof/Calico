@@ -125,11 +125,11 @@ struct board {
             }
         }
 
-        
+        int kingIdx = kings[whiteToMove];        
         inCheck = attacked(kingIdx);
 
         if (!capturesOnly && !inCheck) {
-            int kingIdx = kings[whiteToMove];
+            
             if (shortCastle[whiteToMove] && squares[kingIdx + E] == EMPTY && squares[kingIdx + E + E] == EMPTY) {
                 addMove(&moves, kingIdx, kingIdx+E+E, false);
             }
@@ -192,6 +192,25 @@ struct board {
             scan(QUEEN + !whiteToMove, index, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, true) ||
             scan(KING + !whiteToMove, index, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, false);
         return attacked;
+    }
+
+    bool fastAttacked(int index, int start) {
+        int delta = start - index;
+
+        if (delta < 0) {
+            if (delta > -8) return scan(ROOK + !whiteToMove, index, std::vector<int>{-1}, true) || scan(QUEEN + !whiteToMove, index, std::vector<int>{-1}, true);
+            if (delta % -10 == 0) return scan(ROOK + !whiteToMove, index, std::vector<int>{-10}, true) || scan(QUEEN + !whiteToMove, index, std::vector<int>{-10}, true);
+            if (delta % -9 == 0) return scan(BISHOP + !whiteToMove, index, std::vector<int>{-9}, true) || scan(QUEEN + !whiteToMove, index, std::vector<int>{-9}, true);
+            if (delta % -11 == 0) return scan(BISHOP + !whiteToMove, index, std::vector<int>{-11}, true) || scan(QUEEN + !whiteToMove, index, std::vector<int>{-11}, true);
+            
+        } else {
+            if (delta < 8) return scan(ROOK + !whiteToMove, index, std::vector<int>{1}, true) || scan(QUEEN + !whiteToMove, index, std::vector<int>{1}, true);
+            if (delta % 10 == 0) return scan(ROOK + !whiteToMove, index, std::vector<int>{10}, true) || scan(QUEEN + !whiteToMove, index, std::vector<int>{10}, true);
+            if (delta % 9 == 0) return scan(BISHOP + !whiteToMove, index, std::vector<int>{9}, true) || scan(QUEEN + !whiteToMove, index, std::vector<int>{9}, true);
+            if (delta % 11 == 0) return scan(BISHOP + !whiteToMove, index, std::vector<int>{11}, true) || scan(QUEEN + !whiteToMove, index, std::vector<int>{11}, true);
+        }
+
+        return false;
     }
 
     bool scan(int8_t find, int start, std::vector<int> pattern, bool ray){
@@ -263,8 +282,21 @@ board* apply(board* oldBoard, move m){
 
     cBoard->edit(m.end, movingPiece);
     cBoard->edit(m.start, EMPTY);
+    if (m.flag != EMPTY) cBoard->edit(m.end, m.flag + isWhite); // TODO: rename flag to something more descriptive like promoflag
 
-    if ((movingPiece & 14) == KING) { 
+    bool isKingMoving = ((movingPiece & 14) == KING);
+
+    if (!isKingMoving) {
+        if (!cBoard->inCheck) {
+            if (cBoard->fastAttacked(cBoard->kings[isWhite], m.start)) {
+                delete cBoard;
+                return nullptr;
+            }
+        } else if (cBoard->attacked(cBoard->kings[isWhite])) {
+            delete cBoard;
+            return nullptr;
+        }
+    } else { 
         if (m.end - m.start == W + W) {
             if (cBoard->attacked(cBoard->kings[isWhite]+W)) {
                 delete cBoard;
@@ -287,18 +319,11 @@ board* apply(board* oldBoard, move m){
         cBoard->longCastle[isWhite] = false;
         cBoard->shortCastle[isWhite] = false;
         cBoard->kings[isWhite] = m.end;
-    }
 
-    
-
-    // TODO: rename flag to something more descriptive like promoflag
-    if (m.flag != EMPTY) {
-        cBoard->edit(m.end, m.flag + isWhite);
-    }
-
-    if (cBoard->attacked(cBoard->kings[isWhite])) {
-        delete cBoard;
-        return nullptr;
+        if (cBoard->attacked(cBoard->kings[isWhite])) {
+            delete cBoard;
+            return nullptr;
+        }
     }
 
     if (m.start == H1 || m.end == H1) cBoard->shortCastle[1] = false;
@@ -393,7 +418,7 @@ int perft(board* b, int depth){
 
     std::vector<move> moves = b->GenerateMoves();
     for (move m : moves) {
-        board* nextBoard = apply(b, m);        
+        board* nextBoard = apply(b, m);
         if (nextBoard != nullptr) nodes += perft(nextBoard, depth-1);
         delete nextBoard;
     }
@@ -406,6 +431,6 @@ board* applyMoveStr(board* b, std::string moveStr){
     int8_t start = strToSquare(moveStr.substr(0,2));
     int8_t end = strToSquare(moveStr.substr(2,4));
     int8_t flag = EMPTY;
-    if(moveStr.length() == 5) flag = (charToPiece(moveStr[4]) | b->whiteToMove);
+    if(moveStr.length() == 5) flag = charToPiece(moveStr[4]);
     return apply(b, move{start,end,flag});
 }
