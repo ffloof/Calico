@@ -125,16 +125,15 @@ struct board {
             }
         }
 
-        int kingIdx = kings[whiteToMove];
-        bool canShortCastle = shortCastle[whiteToMove];
-        bool canLongCastle = longCastle[whiteToMove];
+        
         inCheck = attacked(kingIdx);
 
         if (!capturesOnly && !inCheck) {
-            if (canShortCastle && squares[kingIdx + E] == EMPTY && squares[kingIdx + E + E] == EMPTY) {
+            int kingIdx = kings[whiteToMove];
+            if (shortCastle[whiteToMove] && squares[kingIdx + E] == EMPTY && squares[kingIdx + E + E] == EMPTY) {
                 addMove(&moves, kingIdx, kingIdx+E+E, false);
             }
-            if (canLongCastle && squares[kingIdx + W] == EMPTY && squares[kingIdx + W + W] == EMPTY && squares[kingIdx + W + W + W] == EMPTY) {
+            if (longCastle[whiteToMove] && squares[kingIdx + W] == EMPTY && squares[kingIdx + W + W] == EMPTY && squares[kingIdx + W + W + W] == EMPTY) {
                 addMove(&moves, kingIdx, kingIdx+W+W, false);
             }
         }
