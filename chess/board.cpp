@@ -69,8 +69,7 @@ struct board {
     bool inCheck;
     int mobilities[2];
 
-    int earlyScore;
-    int lateScore;
+    int score;
     int phase;
 
     std::vector<move> GenerateMoves(bool capturesOnly=false){
@@ -237,10 +236,11 @@ struct board {
         int8_t oldPiece = squares[index];
         updateHash(index, oldPiece, newPiece);
         updateEval(index, oldPiece, newPiece);
-        if (oldPiece == PAWN) pawnCounts[0][index%10] -= 1;
-        if (oldPiece == PAWN+1) pawnCounts[1][index%10] -= 1;
-        if (newPiece == PAWN) pawnCounts[0][index%10] += 1;
-        if (newPiece == PAWN+1) pawnCounts[1][index%10] += 1;
+        int file = index % 10;
+        if (oldPiece == PAWN) pawnCounts[0][file] -= 1;
+        if (oldPiece == PAWN+1) pawnCounts[1][file] -= 1;
+        if (newPiece == PAWN) pawnCounts[0][file] += 1;
+        if (newPiece == PAWN+1) pawnCounts[1][file] += 1;
         squares[index] = newPiece;
     }
 
@@ -251,8 +251,7 @@ struct board {
             if (i%10 == 9) std::cout << std::endl;
         }
         std::cout << getHash() << std::endl;
-        std::cout << earlyScore << std::endl;
-        std::cout << lateScore << std::endl;
+        std::cout << score << std::endl; // TODO: make this unpack score var
     }
 };
 
