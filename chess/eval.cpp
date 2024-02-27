@@ -12,6 +12,7 @@ int mailbox[64] = {
 
 int phases[14] = {0,0,0,0,2,2,2,2,3,3,8,8,0};
 
+// Pack (middleGame, endGame) scores into one integer to save operations
 #define S(a, b) (a + (b * 0x10000))
 
 int material[7] = {S(0,0),S(100,100),S(400,290),S(440,320),S(575,550),S(1200,1000), S(0,0)};
@@ -103,26 +104,21 @@ void board::updateEval(int index, int8_t oldPiece, int8_t newPiece) {
 }
 
 int evaluate(board* b) {
-    int truePhase = b->phase;
-    if (truePhase > 44) truePhase = 44;
-
     // king safety
     int wKingFile = b->kings[1] % 10;
     int bKingFile = b->kings[0] % 10;
 
     int score = b->score;
 
-    for (int i=-1;i<=1;i++){
-        if (b->pawnCounts[0][wKingFile + i] == 0) score -= S(10,0); // black has open file towards white king
-        if (b->pawnCounts[1][wKingFile + i] == 0) score -= S(20,0); // white king pawn shield broken
-        if (b->pawnCounts[0][bKingFile + i] == 0) score += S(20,0); // black king pawn shield broken 
-        if (b->pawnCounts[1][bKingFile + i] == 0) score += S(10,0); // white has open file towards black king
-    }
+    if (b->pawnCounts[0][wKingFile] == 0) score -= S(20,0); // black has open file towards white king
+    if (b->pawnCounts[1][wKingFile] == 0) score -= S(30,0); // white king pawn shield broken
+    if (b->pawnCounts[0][bKingFile] == 0) score += S(30,0); // black king pawn shield broken 
+    if (b->pawnCounts[1][bKingFile] == 0) score += S(20,0); // white has open file towards black king
 
     int16_t earlyScore = (int16_t) score;
     int16_t lateScore = (int16_t)( (score + 0x8000) >> 16);
 
-    score = ((truePhase * earlyScore) + ((44-truePhase)*lateScore))/44; 
+    score = ((b->phase * earlyScore) + ((44-b->phase)*lateScore))/44; 
 
     // pawn structure
     for (int i=1;i<=8;i++) {
@@ -135,5 +131,6 @@ int evaluate(board* b) {
     score += -b->mobilities[0] + b->mobilities[1];
     
     if (!b->whiteToMove) score = -score;
-    return score + 10; // tempobonus
+    score += 10; // tempo bonus
+    return score;
 }

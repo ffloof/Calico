@@ -6,12 +6,12 @@ import chess.engine
 import sys
 import numpy
 
-thinkTime = 0.25
+thinkTime = 0.2
 thinkNoise = 0
-touchTime = 0.1
-touchNoise = 0.06
+touchTime = 0.05
+touchNoise = 0.1
 moveTime = 0.05
-moveNoise = 0.03
+moveNoise = 0.05
 
 side = sys.argv[1].lower()
 playingWhite = True

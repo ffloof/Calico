@@ -73,7 +73,9 @@ struct board {
     int phase;
 
     std::vector<move> GenerateMoves(bool capturesOnly=false){
-        std::vector<move> moves = {};
+        std::vector<move> moves;
+        //if (capturesOnly) moves.reserve(16); //TODO: check if it makes sense to preallocate a specific amount and what it should be
+        //else moves.reserve(64);
 
         int advance = whiteToMove ? N : S;
         int sideMobility = 0;
@@ -251,7 +253,10 @@ struct board {
             if (i%10 == 9) std::cout << std::endl;
         }
         std::cout << getHash() << std::endl;
-        std::cout << score << std::endl; // TODO: make this unpack score var
+        int16_t earlyScore = (int16_t) score;
+        int16_t lateScore = (int16_t)( (score + 0x8000) >> 16);
+        int finalScore = ((phase * earlyScore) + ((44-phase)*lateScore))/44; 
+        std::cout << earlyScore << "->" << lateScore << "=" << finalScore << std::endl; // TODO: make this unpack score var
     }
 };
 

@@ -55,7 +55,8 @@ struct searcher {
     }
 
     int qsearch(board* b, int alpha, int beta) {
-        ttentry* tentry = tableget(b->getHash());
+        uint64_t hash = b->getHash();
+        ttentry* tentry = tableget(hash);
         move tablemove;
         if (tentry != nullptr) {
             tablemove = tentry->tableMove;
@@ -81,6 +82,8 @@ struct searcher {
             priorities[i] = (b->squares[m.end] * 16) - b->squares[m.start] + 16;
         }
 
+        move bestMove;
+        bool raisedAlpha = true;
         int legals = 0;
         for (int i=0;i<moves.size();i++){
             int bestPriority = 0;
@@ -106,13 +109,20 @@ struct searcher {
 
             if (score > bestScore) {
                 bestScore = score;
+                bestMove = m;
             }
 
             if (score > alpha) {
+                raisedAlpha = true;
                 alpha = score;
                 if (score >= beta) break;
             }
         }
+
+        int8_t boundtype = EXACT;
+        if (!raisedAlpha) boundtype = UPPERBOUND;
+        if (bestScore >= beta) boundtype = LOWERBOUND;
+        tablesetempty(hash, bestMove, bestScore, boundtype);
         
         return bestScore;
     }
@@ -130,7 +140,6 @@ struct searcher {
 
         ttentry* tentry = tableget(hash);
 
-        // TODO: could this be leading us astray in endgame positions?
         // Internal iterative deepening
         if (tentry == nullptr && depth > 4) {
             alphabeta(b, alpha, beta, depth/2);
@@ -150,8 +159,10 @@ struct searcher {
             }
         }
         
+        // TODO: we could call the part that defines inCheck here seperately but then we lose out on mobility evaluation
+        std::vector<move> moves = b->GenerateMoves();
         int eval = evaluate(b);
-
+        
         // Reverse futility pruning
         if (!pv && !b->inCheck && depth <= 5 && eval >= beta + (125*depth)) {
             pop();
@@ -159,7 +170,7 @@ struct searcher {
         }
 
         // Null move pruning
-        if (!pv && depth >= 2 && eval >= beta && b->phase > 8) {
+        if (!pv && !b->inCheck && depth >= 2 && eval >= beta && b->phase > 8) {
             board* nmBoard = apply(b, NULLMOVE);
             if (nmBoard != nullptr) {
                 int nmReduction = 3 + (depth/3);
@@ -172,9 +183,6 @@ struct searcher {
             }
         }
 
-        
-
-        std::vector<move> moves = b->GenerateMoves();
         std::vector<int> priorities(moves.size());
         move killermove = killers[ply];
         for (int i=0;i<moves.size();i++){
@@ -237,7 +245,7 @@ struct searcher {
                     raisedAlpha = true;
                     alpha = score;
                     if (score >= beta) { 
-                        if(b->squares[m.end] == EMPTY) history[b->squares[m.start]][m.end] += depth * depth;
+                        if(b->squares[m.end] == EMPTY) history[b->squares[m.start]][m.end] += (depth * depth);
                         killers[ply] = m;
                         break;
                     }
@@ -259,7 +267,7 @@ struct searcher {
         if (!raisedAlpha) boundtype = UPPERBOUND;
         if (bestScore >= beta) boundtype = LOWERBOUND;
 
-        tableset(b, bestMove, depth, bestScore, boundtype);
+        tableset(hash, bestMove, depth, bestScore, boundtype);
         
 
         pop();

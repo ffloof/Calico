@@ -53,9 +53,15 @@ ttentry* tableget(uint64_t key) {
     return nullptr;
 }
 
-void tableset(board* b, move m, int16_t depth, int16_t score, int8_t bound) {
-    uint64_t key = b->getHash();
+void tableset(uint64_t key, move m, int16_t depth, int16_t score, int8_t bound) {
     ttable[key % tsize] = ttentry{key, score, depth, m, bound};
+}
+
+void tablesetempty(uint64_t key, move m, int16_t score, int8_t bound) {
+    ttentry* e = &ttable[key % tsize];
+    if (e->depth <= 1) {
+        ttable[key % tsize] = ttentry{key, score, 0, m, bound};
+    }
 }
 
 void printpv(board* b){
