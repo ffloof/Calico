@@ -140,8 +140,10 @@ struct searcher {
 
         ttentry* tentry = tableget(hash);
 
-        // Internal iterative deepening
-        if (tentry == nullptr && depth > 4) {
+        if (tentry == nullptr && depth > 3) {
+            depth--; // Internal iterative reduction
+
+            // Internal iterative deepening
             alphabeta(b, alpha, beta, depth/2);
             tentry = tableget(hash);
         }
@@ -164,7 +166,7 @@ struct searcher {
         int eval = evaluate(b);
         
         // Reverse futility pruning
-        if (!pv && !b->inCheck && depth <= 5 && eval >= beta + (125*depth)) {
+        if (!pv && !b->inCheck && depth <= 5 && eval >= beta + (100*depth)) {
             pop();
             return eval;
         }
@@ -225,8 +227,9 @@ struct searcher {
                 score = -alphabeta(nextBoard, -beta, -alpha, depth-1);
             } else {
                 //LMR
-                int reduction = ((legals / 16) + (depth / 6) + (legals > 4));
-                if ((b->squares[m.end] != EMPTY) || pv || b->inCheck) {
+                //TODO: should we disallow history heuristic to make extensions with fmax
+                int reduction = ((legals / 16) + (depth / 6) + (legals > 4)) + (history[b->squares[m.start]][m.end]/200);
+                if ((b->squares[m.end] != EMPTY) || pv || b->inCheck || reduction < 0) {
                     reduction = 0;
                 } else {
                     quietsLeft -= 1;
@@ -245,8 +248,19 @@ struct searcher {
                     raisedAlpha = true;
                     alpha = score;
                     if (score >= beta) { 
-                        if(b->squares[m.end] == EMPTY) history[b->squares[m.start]][m.end] += (depth * depth);
+                        // Update killers
                         killers[ply] = m;
+                        
+                        // Update history
+                        int updateSize = depth * depth;
+                        if(b->squares[m.end] == EMPTY) {
+                            history[b->squares[m.start]][m.end] += updateSize - (updateSize * history[b->squares[m.start]][m.end] / 512);
+                            for (int n=0;n<i;n++){
+                                move malusMove = moves[n];
+                                if (b->squares[malusMove.end] == EMPTY) history[b->squares[malusMove.start]][malusMove.end] -= updateSize + (updateSize * history[b->squares[malusMove.start]][malusMove.end] / 512);
+                            }
+                        }
+
                         break;
                     }
                 }
