@@ -141,7 +141,7 @@ struct searcher {
         ttentry* tentry = tableget(hash);
 
         if (tentry == nullptr && depth > 3) {
-            depth--; // Internal iterative reduction
+            if(!pv) depth--; // Internal iterative reduction
 
             // Internal iterative deepening
             alphabeta(b, alpha, beta, depth/2);
