@@ -71,7 +71,7 @@ int main(){
             } catch(const std::invalid_argument& e) {
                 try {
                     totalTime = std::stoi(beforeWord(afterWord(arguments, "movetime"), " "));
-                    iterativeSearch(&uciBoard, totalTime/2, prevPositions);
+                    iterativeSearch(&uciBoard, totalTime, prevPositions);
                 } catch(const std::invalid_argument& e) {
                     iterativeSearch(&uciBoard, 1000, prevPositions);
                 }

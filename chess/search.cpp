@@ -50,8 +50,10 @@ struct searcher {
         return std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
     }
 
-    bool outOfTime(){
-        return ellapsedTime() > timeAlloc;
+    bool outOfTime(bool inSearch=true){
+        if (inSearch && nodes % 1024 != 0) return false; // Calls to time are expensive avoid doing them too often
+        if (!inSearch) return ellapsedTime() > timeAlloc / 2; // Soft limit
+        return ellapsedTime() > timeAlloc; // Hard limit
     }
 
     int qsearch(board* b, int alpha, int beta) {
@@ -86,6 +88,7 @@ struct searcher {
         bool raisedAlpha = true;
         int legals = 0;
         for (int i=0;i<moves.size();i++){
+            if (outOfTime()) throw 0;
             int bestPriority = 0;
             int bestIndex = 0;
             for (int j=i;j<moves.size();j++){
@@ -203,6 +206,8 @@ struct searcher {
         bool raisedAlpha = false;
 
         for (int i=0;i<moves.size();i++){
+            if (outOfTime()) throw 1;
+
             int bestPriority = 0;
             int bestIndex = 0;
             for (int j=i;j<moves.size();j++){
@@ -301,13 +306,17 @@ void iterativeSearch(board* b, int searchTime, std::vector<uint64_t> prevHashs) 
 
     int depth;
     for(depth=1;depth<30;depth++){
-        int score = s.alphabeta(b, lastscore - 25, lastscore + 25, depth);
-        if ((score <= (lastscore - 25)) || ((lastscore + 25) <= score)) score = s.alphabeta(b, -MATE_SCORE, MATE_SCORE, depth);
+        try {
+            int score = s.alphabeta(b, lastscore - 25, lastscore + 25, depth);
+            if ((score <= (lastscore - 25)) || ((lastscore + 25) <= score)) score = s.alphabeta(b, -MATE_SCORE, MATE_SCORE, depth);
 
-        std::cout << "info depth " << depth << " score cp " << score << " time " << s.ellapsedTime() << " nodes " << s.nodes << " ";
-        printpv(b);
-        std::cout << std::endl;
-        if (s.outOfTime() || score > 9000) break;  
+            std::cout << "info depth " << depth << " score cp " << score << " time " << s.ellapsedTime() << " nodes " << s.nodes << " ";
+            printpv(b);
+            std::cout << std::endl;
+            if (s.outOfTime(false) || score > 9000) break;  
+        } catch(int err){
+            break;
+        }
     }
 
     tentry = tableget(b->getHash());
