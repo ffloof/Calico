@@ -302,10 +302,10 @@ void iterativeSearch(board* b, int searchTime, std::vector<uint64_t> prevHashs) 
     
     ttentry* tentry = tableget(b->getHash());
     int lastscore = 0;
+    move chosenMove;
     if (tentry != nullptr) lastscore = tentry->score;
-
-    int depth;
-    for(depth=1;depth<30;depth++){
+    
+    for(int depth=1;depth<30;depth++){
         try {
             int score = s.alphabeta(b, lastscore - 25, lastscore + 25, depth);
             if ((score <= (lastscore - 25)) || ((lastscore + 25) <= score)) score = s.alphabeta(b, -MATE_SCORE, MATE_SCORE, depth);
@@ -313,14 +313,16 @@ void iterativeSearch(board* b, int searchTime, std::vector<uint64_t> prevHashs) 
             std::cout << "info depth " << depth << " score cp " << score << " time " << s.ellapsedTime() << " nodes " << s.nodes << " ";
             printpv(b);
             std::cout << std::endl;
+
+            tentry = tableget(b->getHash());
+            chosenMove = tentry->tableMove;
+
             if (s.outOfTime(false) || score > 9000) break;  
         } catch(int err){
+            std::cout << "info string " << err << std::endl;
             break;
         }
-    }
-
-    tentry = tableget(b->getHash());
-    move chosenMove = tentry->tableMove;
+    }    
     std::cout << "bestmove ";
     chosenMove.print();
     std::cout << std::endl;

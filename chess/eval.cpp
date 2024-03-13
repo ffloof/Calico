@@ -15,7 +15,7 @@ int phases[14] = {0,0,0,0,2,2,2,2,3,3,8,8,0};
 // Pack (middleGame, endGame) scores into one integer to save operations
 #define S(a, b) (a + (b * 0x10000))
 
-int material[7] = {S(0,0),S(100,100),S(400,290),S(440,320),S(575,550),S(1200,1000), S(0,0)};
+int material[7] = {S(0,0),S(100,100),S(400,290),S(400,320),S(575,550),S(1200,1000), S(0,0)};
 
 int activity[7][64] = {
     {},

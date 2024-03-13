@@ -6,8 +6,8 @@ import chess.engine
 import sys
 import numpy
 
-thinkTime = 0.2
-thinkNoise = 0
+thinkTime = 1
+thinkNoise = 0.5
 touchTime = 0.05
 touchNoise = 0.1
 moveTime = 0.05
