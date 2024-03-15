@@ -157,7 +157,7 @@ struct board {
 
     void addPawnMove(std::vector<move>* moves, int start, int end, bool capturesOnly, bool willPromote) {
         if (willPromote) {
-            for (int8_t promotion : std::vector<int8_t>{QUEEN, ROOK, KNIGHT, BISHOP}) 
+            for (int8_t promotion : std::vector<int8_t>{QUEEN}) 
                 addMove(moves, start, end, capturesOnly, promotion);
         } else addMove(moves, start, end, capturesOnly);
     }

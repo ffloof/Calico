@@ -43,9 +43,9 @@ struct ttentry {
 
 const int8_t LOWERBOUND = -1, EXACT = 0, UPPERBOUND = 1;
 
-const int tsize = 20000000;
+const int tsize = 256000000 / 16; // Each entry is 16 bytes, so 256MB should be div by 16 
 
-ttentry ttable[20000000] = {};
+ttentry ttable[tsize] = {};
 
 ttentry* tableget(uint64_t key) {
     ttentry* e = &ttable[key % tsize];

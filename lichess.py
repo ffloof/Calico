@@ -7,11 +7,14 @@ import sys
 import numpy
 
 thinkTime = 1
-thinkNoise = 0.5
-touchTime = 0.05
-touchNoise = 0.1
-moveTime = 0.05
-moveNoise = 0.05
+thinkNoise = 2.5
+
+captureReduction = 0.2
+
+touchTime = 0.2
+touchNoise = 0.2
+moveTime = 0.1
+moveNoise = 0.1
 
 side = sys.argv[1].lower()
 playingWhite = True
@@ -57,11 +60,21 @@ allowEngine = True
 
 lastmove = ""
 
+capture_history = [ True, True ] # We say at the start of the game the last moves were captures so it plays first move faster
+
 while True:
     if (playingWhite == (board.turn == chess.WHITE)):
         if allowEngine:
-            allowEngine = False 
-            result = str(engine.play(board, chess.engine.Limit(time=(thinkTime + numpy.random.exponential(thinkNoise)))).move)
+            allowEngine = False
+
+            multiplier = 1.0
+
+            if capture_history[-1]:
+                multiplier *= captureReduction
+                if capture_history[-2]:
+                    multiplier *= captureReduction
+
+            result = str(engine.play(board, chess.engine.Limit(time=(thinkTime + numpy.random.exponential(thinkNoise * multiplier)))).move)
             print("engine", result)
             chosenstart = result[0:2]
             chosenend = result[2:4]
@@ -132,7 +145,10 @@ while True:
                 board.parse_uci(move)
                 lastmove = move
                 allowEngine = True
-                board.push(chess.Move.from_uci(move))
+
+                pymove = chess.Move.from_uci(move)
+                capture_history.append(board.is_capture(pymove))
+                board.push(pymove)
                 print(move, "->", board.fen())
-            except:
-                print('error')
+            except Exception as err:
+                print('error', err)
