@@ -194,8 +194,8 @@ struct searcher {
             move m = moves[i];
             priorities[i] = (b->squares[m.end] * 16) - b->squares[m.start] + CAPTURE_PRIORITY;
             priorities[i] += history[b->squares[m.start]][m.end];
-            if(m.start == tablemove.start && m.end == tablemove.end && m.flag == tablemove.flag) priorities[i] = TABLEMOVE_PRIORITY;
-            if(m.start == killermove.start && m.end == killermove.end && m.flag == killermove.flag) priorities[i] += KILLER_PRIORITY;
+            if(m.start == tablemove.start && m.end == tablemove.end) priorities[i] = TABLEMOVE_PRIORITY;
+            if(m.start == killermove.start && m.end == killermove.end) priorities[i] += KILLER_PRIORITY;
         }
 
         int legals = 0;
@@ -319,7 +319,6 @@ void iterativeSearch(board* b, int searchTime, std::vector<uint64_t> prevHashs) 
 
             if (s.outOfTime(false) || score > 9000) break;  
         } catch(int err){
-            std::cout << "info string " << err << std::endl;
             break;
         }
     }    

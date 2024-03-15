@@ -46,12 +46,11 @@ int8_t charToPiece(char c){
 struct move {
     int8_t start;
     int8_t end;
-    int8_t flag;
 
-    void print(){
+    void print(int8_t promoflag=EMPTY){
         std::cout << squareToStr(start); 
         std::cout << squareToStr(end);
-        if (flag != EMPTY) std::cout << pieceToChar(flag&14);
+        if (promoflag != EMPTY) std::cout << pieceToChar(promoflag&14);
     }
 };
 
@@ -89,11 +88,10 @@ struct board {
 
             switch(piecetype){
                 case PAWN: {
-                    bool willPromote = isPromotionRow(i+advance);   
-                    addPawnMove(&moves, i, i+advance+W, true, willPromote);
-                    addPawnMove(&moves, i, i+advance+E, true, willPromote);
+                    addMove(&moves, i, i+advance+W, true);
+                    addMove(&moves, i, i+advance+E, true);
                     if (squares[i+advance] == EMPTY) {
-                        addPawnMove(&moves, i, i+advance, capturesOnly, willPromote);
+                        addMove(&moves, i, i+advance, capturesOnly);
                         if (squares[i+advance+advance] == EMPTY && isHomeRow(i)) {
                             addMove(&moves, i, i+advance+advance, capturesOnly);
                         }
@@ -155,31 +153,18 @@ struct board {
         return mobility;
     }
 
-    void addPawnMove(std::vector<move>* moves, int start, int end, bool capturesOnly, bool willPromote) {
-        if (willPromote) {
-            for (int8_t promotion : std::vector<int8_t>{QUEEN}) 
-                addMove(moves, start, end, capturesOnly, promotion);
-        } else addMove(moves, start, end, capturesOnly);
-    }
-
-    void addMove(std::vector<move>* moves, int8_t start, int8_t end, bool capturesOnly, int8_t flag=EMPTY) {
+    void addMove(std::vector<move>* moves, int8_t start, int8_t end, bool capturesOnly) {
         if (capturesOnly && squares[end] == EMPTY) return;
         if (squares[end] == BORDER) return;
         if (squares[end] != EMPTY && (whiteToMove == (squares[end] & 1))) return;
 
-        moves->push_back(move{start,end,flag});
+        moves->push_back(move{start,end});
     }
 
     bool isHomeRow(int index) {
         int rank = (index / 10)-2;
         if (whiteToMove) return rank == 6;
         return rank == 1;
-    }
-
-    bool isPromotionRow(int index) {
-        int rank = (index / 10) - 2;
-        if (whiteToMove) return rank == 0;
-        return rank == 7;
     }
 
     bool attacked(int index) {
@@ -282,11 +267,17 @@ board* apply(board* oldBoard, move m){
             // EN PASSANT
             cBoard->edit(m.end + (S*color[isWhite]), EMPTY);
         }
+
+        // Promotion if a pawn ends on either of the back ranks, promote, always to a queen
+        if (m.end <= H8 || m.end >= A1) {
+            cBoard->edit(m.start, QUEEN + isWhite); // Have to make a weird call to edit to make sure hash and psqt are updated correctly
+            movingPiece = QUEEN + isWhite; 
+        }
+        
     }
 
     cBoard->edit(m.end, movingPiece);
     cBoard->edit(m.start, EMPTY);
-    if (m.flag != EMPTY) cBoard->edit(m.end, m.flag + isWhite); // TODO: rename flag to something more descriptive like promoflag
 
     bool isKingMoving = ((movingPiece & 14) == KING);
 
@@ -434,7 +425,5 @@ board* applyMoveStr(board* b, std::string moveStr){
     if(moveStr.length() < 4) return nullptr;
     int8_t start = strToSquare(moveStr.substr(0,2));
     int8_t end = strToSquare(moveStr.substr(2,4));
-    int8_t flag = EMPTY;
-    if(moveStr.length() == 5) flag = charToPiece(moveStr[4]);
-    return apply(b, move{start,end,flag});
+    return apply(b, move{start,end});
 }
