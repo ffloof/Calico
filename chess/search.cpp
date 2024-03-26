@@ -38,7 +38,7 @@ struct searcher {
             if (repetition[i] == hash) return true;
         }
 
-        for (int i=1;i<prev.size();i+=2) {
+        for (int i=1;i<prev.size();i++) {
             if (prev[i] == hash) return true; 
         }
 
