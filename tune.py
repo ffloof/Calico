@@ -47,7 +47,7 @@ rays = [ False, False, False, True, True, True, False]
 patterns = [ [], [], [N+N+W,N+N+E,S+S+W,S+S+E,W+W+N,W+W+S,E+E+N,E+E+S], [N+W,N+E,S+W,S+E], [N,S,E,W], [N,S,E,W,N+W,N+E,S+W,S+E], [N,S,E,W,N+W,N+E,S+W,S+E]]
 
 for line in tqdm(lines):
-    if len(outputs) > 100000:
+    if len(outputs) > 500000:
         break
 
     packed = line.split("c9")
@@ -179,30 +179,25 @@ bias = mlp_regressor.intercepts_[0]
 
 half = len(weights)//2
 
-def printcomma(n):
+def printcomma(idx):
+    n1 = weights[idx][0]
+    n2 = weights[idx + half][0]
     #print("{:.3f}".format(n), end=",")
-    print(int(128 * n), end=",")
+    print("S("+str(int(128 * n1)) + "," + str(int(128*n2)) +")", end=",")
 
-def printflat(start,end,addedhalf=False):
-    x = weights[start:end]
-    for y in x:
-        printcomma(y[0])
+def printflat(start,end):
+    for y in range(start,end):
+        printcomma(y)
     print("")
-    if not addedhalf:
-        print("")
-        printflat(half+start, half+end, True)
 
-def printpsqt(start,end,size,addedhalf=False): # m allows for adjusting psqt by material
+def printpsqt(start,end,size): # m allows for adjusting psqt by material
     x = weights[start:end]
     i = 0
-    for y in x:
-        printcomma(y[0])
+    for y in range(start,end):
+        printcomma(y)
         if i % size == size-1:
             print("")
         i += 1
-    if not addedhalf:
-        print("")
-        printpsqt(half+start, half+end, size, True)
 
 
 
