@@ -43,6 +43,11 @@ int8_t charToPiece(char c){
    return pieceChars.find(c);
 }
 
+#define S(a, b) (a + (b * 0x10000))
+const int BishopMobility = S(6,3);
+const int RookMobility = S(7,2);
+const int QueenMobility = S(3,1);
+
 struct move {
     int8_t start;
     int8_t end;
@@ -102,13 +107,13 @@ struct board {
                     PieceMoves(&moves, i, std::vector<int>{N+N+W,N+N+E,S+S+W,S+S+E,W+W+N,W+W+S,E+E+N,E+E+S}, false, capturesOnly);
                     break;
                 case BISHOP:
-                    sideMobility += 2 * PieceMoves(&moves, i, std::vector<int>{N+W,N+E,S+W,S+E}, true, capturesOnly);
+                    sideMobility += BishopMobility * PieceMoves(&moves, i, std::vector<int>{N+W,N+E,S+W,S+E}, true, capturesOnly);
                     break;
                 case ROOK:
-                    sideMobility += 3 * PieceMoves(&moves, i, std::vector<int>{N,S,E,W}, true, capturesOnly);
+                    sideMobility += RookMobility * PieceMoves(&moves, i, std::vector<int>{N,S,E,W}, true, capturesOnly);
                     break;
                 case QUEEN:
-                    PieceMoves(&moves, i, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, true, capturesOnly);
+                    sideMobility += QueenMobility * PieceMoves(&moves, i, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, true, capturesOnly);
                     break;
                 case KING:
                     PieceMoves(&moves, i, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, false, capturesOnly);

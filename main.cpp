@@ -23,10 +23,12 @@ std::vector<uint64_t> unrollMoveStr(board* b,std::string remainingMoves){
 }
 
 int main(){
+    
     std::vector<uint64_t> prevPositions;
     initZobrists();
     initPSQT();
     uciBoard = newBoard();
+    setup_nnue();
     
     std::string line;
 
