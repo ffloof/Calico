@@ -26,9 +26,8 @@ int main(){
     
     std::vector<uint64_t> prevPositions;
     initZobrists();
-    initPSQT();
+    initNNUE();
     uciBoard = newBoard();
-    setup_nnue();
     
     std::string line;
 

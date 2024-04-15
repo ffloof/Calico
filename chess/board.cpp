@@ -44,9 +44,6 @@ int8_t charToPiece(char c){
 }
 
 #define S(a, b) (a + (b * 0x10000))
-const int BishopMobility = S(6,3);
-const int RookMobility = S(7,2);
-const int QueenMobility = S(3,1);
 
 struct move {
     int8_t start;
@@ -63,7 +60,6 @@ move NULLMOVE = move{};
 
 struct board {
     int8_t squares[120];
-    int8_t pawnCounts[2][10];
     int kings[2]; 
     int enpassant;
     uint64_t hash;
@@ -71,7 +67,6 @@ struct board {
     bool longCastle[2];
     bool whiteToMove;
     bool inCheck;
-    int mobilities[2];
 
     int score;
     int phase;
@@ -82,7 +77,6 @@ struct board {
         //else moves.reserve(64);
 
         int advance = whiteToMove ? N : S;
-        int sideMobility = 0;
 
         for (int i=A8; i<=H1; i++) {
             int8_t piece = squares[i];
@@ -107,13 +101,13 @@ struct board {
                     PieceMoves(&moves, i, std::vector<int>{N+N+W,N+N+E,S+S+W,S+S+E,W+W+N,W+W+S,E+E+N,E+E+S}, false, capturesOnly);
                     break;
                 case BISHOP:
-                    sideMobility += BishopMobility * PieceMoves(&moves, i, std::vector<int>{N+W,N+E,S+W,S+E}, true, capturesOnly);
+                    PieceMoves(&moves, i, std::vector<int>{N+W,N+E,S+W,S+E}, true, capturesOnly);
                     break;
                 case ROOK:
-                    sideMobility += RookMobility * PieceMoves(&moves, i, std::vector<int>{N,S,E,W}, true, capturesOnly);
+                    PieceMoves(&moves, i, std::vector<int>{N,S,E,W}, true, capturesOnly);
                     break;
                 case QUEEN:
-                    sideMobility += QueenMobility * PieceMoves(&moves, i, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, true, capturesOnly);
+                    PieceMoves(&moves, i, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, true, capturesOnly);
                     break;
                 case KING:
                     PieceMoves(&moves, i, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, false, capturesOnly);
@@ -142,7 +136,6 @@ struct board {
             }
         }
 
-        mobilities[whiteToMove] = sideMobility;
         return moves;
     }
 
@@ -227,12 +220,6 @@ struct board {
     void edit(int index, int8_t newPiece){
         int8_t oldPiece = squares[index];
         updateHash(index, oldPiece, newPiece);
-        updateEval(index, oldPiece, newPiece);
-        int file = index % 10;
-        if (oldPiece == PAWN) pawnCounts[0][file] -= 1;
-        if (oldPiece == PAWN+1) pawnCounts[1][file] -= 1;
-        if (newPiece == PAWN) pawnCounts[0][file] += 1;
-        if (newPiece == PAWN+1) pawnCounts[1][file] += 1;
         squares[index] = newPiece;
     }
 
@@ -243,10 +230,6 @@ struct board {
             if (i%10 == 9) std::cout << std::endl;
         }
         std::cout << getHash() << std::endl;
-        int16_t earlyScore = (int16_t) score;
-        int16_t lateScore = (int16_t)( (score + 0x8000) >> 16);
-        int finalScore = ((phase * earlyScore) + ((44-phase)*lateScore))/44; 
-        std::cout << earlyScore << "->" << lateScore << "=" << finalScore << std::endl; // TODO: make this unpack score var
     }
 };
 
