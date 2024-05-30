@@ -10,7 +10,6 @@ const int KILLER_PRIORITY    = 10000000;
 
 struct searcher {
     int nodes;
-    int ply;
     std::vector<uint64_t> prev;
     uint64_t repetition[255];
     int64_t history[14][120];
@@ -21,17 +20,12 @@ struct searcher {
 
     // TODO: add evals here
 
-    void push(uint64_t hash){
+    void push(uint64_t hash, int ply){
         repetition[ply] = hash;
         nodes++;
-        ply += 1;
     }
 
-    void pop(){
-        ply -= 1;
-    }
-
-    bool isRepetition(uint64_t hash){
+    bool isRepetition(uint64_t hash, int ply){
         if (ply == 0) return false;
 
         for(int i=0;i<ply;i++){
@@ -58,6 +52,8 @@ struct searcher {
 
     int qsearch(board* b, int alpha, int beta) {
         uint64_t hash = b->getHash();
+        push(hash, b->ply);
+
         ttentry* tentry = tableget(hash);
         move tablemove;
         if (tentry != nullptr) {
@@ -105,7 +101,6 @@ struct searcher {
             board* nextBoard = apply(b,m);
             if (nextBoard == nullptr) continue;
             legals++;
-            nodes++;
 
             int score = -qsearch(nextBoard, -beta, -alpha);
             delete nextBoard;
@@ -138,8 +133,8 @@ struct searcher {
         bool pv = beta > alpha + 1;
 
         uint64_t hash = b->getHash();
-        if (isRepetition(hash)) return DRAW_SCORE;
-        push(hash);
+        if (isRepetition(hash, b->ply)) return DRAW_SCORE;
+        push(hash, b->ply);
 
         ttentry* tentry = tableget(hash);
 
@@ -154,11 +149,10 @@ struct searcher {
         move tablemove;
         if (tentry != nullptr) {
             tablemove = tentry->tableMove;
-            if (depth <= tentry->depth && ply != 0){ 
+            if (depth <= tentry->depth && b->ply != 0){ 
                 if ((tentry->bound == EXACT)
                 || (tentry->bound == LOWERBOUND && tentry->score >= beta) 
                 || (tentry->bound == UPPERBOUND && tentry->score <= alpha)) { 
-                    pop();
                     return tentry->score;
                 }
             }
@@ -170,7 +164,6 @@ struct searcher {
         
         // Reverse futility pruning
         if (!pv && !b->inCheck && depth <= 5 && eval >= beta + (100*depth)) {
-            pop();
             return eval;
         }
 
@@ -182,14 +175,13 @@ struct searcher {
                 int nmScore = -alphabeta(nmBoard, -beta, -alpha, depth - nmReduction);
                 delete nmBoard;
                 if (nmScore >= beta) {
-                    pop();
                     return nmScore;
                 }
             }
         }
 
         std::vector<int> priorities(moves.size());
-        move killermove = killers[ply];
+        move killermove = killers[b->ply];
         for (int i=0;i<moves.size();i++){
             move m = moves[i];
             priorities[i] = (b->squares[m.end] * 16) - b->squares[m.start] + CAPTURE_PRIORITY;
@@ -254,7 +246,7 @@ struct searcher {
                     alpha = score;
                     if (score >= beta) { 
                         // Update killers
-                        killers[ply] = m;
+                        killers[b->ply] = m;
                         
                         // Update history
                         int updateSize = depth * depth;
@@ -277,8 +269,7 @@ struct searcher {
         }
 
         if (legals == 0) {
-            pop();
-            if (b->inCheck) return -MATE_SCORE + ply;
+            if (b->inCheck) return -MATE_SCORE + b->ply;
             return DRAW_SCORE;
         }
 
@@ -289,7 +280,6 @@ struct searcher {
         tableset(hash, bestMove, depth, bestScore, boundtype);
         
 
-        pop();
         return bestScore;
     }
 };

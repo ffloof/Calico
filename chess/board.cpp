@@ -70,6 +70,7 @@ struct board {
 
     int score;
     int phase;
+    int ply;
 
     std::vector<move> GenerateMoves(bool capturesOnly=false){
         std::vector<move> moves;
@@ -215,7 +216,7 @@ struct board {
     void updateHash(int index, int8_t oldPiece, int8_t newPiece);
 
     // Defined in eval.cpp
-    void updateEval(int index, int8_t oldPiece, int8_t newPiece);
+    void updateEval(int from, int to, int8_t piece, int changeIndex);
 
     void edit(int index, int8_t newPiece){
         int8_t oldPiece = squares[index];
@@ -236,7 +237,6 @@ struct board {
 
 
 board* apply(board* oldBoard, move m){
-
     board* cBoard = new board;
     if (cBoard == nullptr) {
         std::cout << "nullpointerino" << std::endl;
@@ -244,24 +244,33 @@ board* apply(board* oldBoard, move m){
     std::memcpy(cBoard, oldBoard, sizeof(*oldBoard));
 
     int8_t movingPiece = cBoard->squares[m.start];
+    int8_t victimPiece = cBoard->squares[m.end];
 
     bool isWhite = cBoard->whiteToMove;
     cBoard->enpassant = 0;
+    cBoard->ply++;
+
+    cBoard->updateEval(m.start, m.end, movingPiece, 0);
+    if (victimPiece > 0) cBoard->updateEval(m.end, 0, victimPiece, 1);
+
     if ((movingPiece & 14) == PAWN) {
         if (abs(m.end-m.start) == (2 * S)) {
             // DOUBLE PUSH
             cBoard->enpassant = m.end + (S*color[isWhite]);
         }else if (abs(m.end-m.start) != S && cBoard->squares[m.end] == EMPTY) {
             // EN PASSANT
-            cBoard->edit(m.end + (S*color[isWhite]), EMPTY);
+            int exPawnSquare = m.end + (S*color[isWhite]);
+            cBoard->edit(exPawnSquare, EMPTY);
+            cBoard->updateEval(exPawnSquare, 0, PAWN+(!isWhite), 1);
         }
 
         // Promotion if a pawn ends on either of the back ranks, promote, always to a queen
         if (m.end <= H8 || m.end >= A1) {
             cBoard->edit(m.start, QUEEN + isWhite); // Have to make a weird call to edit to make sure hash and psqt are updated correctly
+            cBoard->updateEval(m.start, 0, movingPiece, 0);
+            cBoard->updateEval(0, m.end, QUEEN+isWhite, victimPiece > 0 ? 2 : 1);
             movingPiece = QUEEN + isWhite; 
-        }
-        
+        }   
     }
 
     cBoard->edit(m.end, movingPiece);
@@ -288,6 +297,7 @@ board* apply(board* oldBoard, move m){
             //CASTLE LONG
             cBoard->edit(m.end + W + W, EMPTY);
             cBoard->edit(m.end + E, ROOK+isWhite);
+            cBoard->updateEval(m.end + W + W, m.end + E, ROOK+isWhite, 1);
         }
         if (m.end - m.start == E + E) {
             if (cBoard->attacked(cBoard->kings[isWhite]+E)) {
@@ -297,6 +307,7 @@ board* apply(board* oldBoard, move m){
             //CASTLE SHORT
             cBoard->edit(m.end + E, EMPTY);
             cBoard->edit(m.end + W, ROOK+isWhite);
+            cBoard->updateEval(m.end + W, m.end + E, ROOK+isWhite, 1);
         }
         
         cBoard->longCastle[isWhite] = false;
@@ -314,7 +325,12 @@ board* apply(board* oldBoard, move m){
     if (m.start == A1 || m.end == A1) cBoard->longCastle[1] = false;
     if (m.start == A8 || m.end == A8) cBoard->longCastle[0] = false;
 
+    if (m.start == m.end) cBoard->updateEval(0,0,0,0); // Incase of null move
+
     cBoard->whiteToMove = !cBoard->whiteToMove;
+    
+
+    
 
     return cBoard;   
 }

@@ -15,6 +15,7 @@ std::vector<uint64_t> unrollMoveStr(board* b,std::string remainingMoves){
         return posHistory;
     }
     b = applyMoveStr(b, beforeWord(remainingMoves, " "));
+    b->ply = 0;
     std::vector<uint64_t> posHistory = unrollMoveStr(b, afterWord(remainingMoves, " "));
     if (posHistory.size() < 16) posHistory.push_back(b->getHash());
     delete b;
