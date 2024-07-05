@@ -80,7 +80,7 @@ struct searcher {
             priorities[i] = (b->squares[m.end] * 16) - b->squares[m.start] + 16;
         }
 
-        move bestMove;
+        move bestMove = NULLMOVE;
         bool raisedAlpha = true;
         int legals = 0;
         for (int i=0;i<moves.size();i++){

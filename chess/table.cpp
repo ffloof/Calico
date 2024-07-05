@@ -70,7 +70,7 @@ void printpv(board* b){
     while (b != nullptr) {
         ttentry* entry = tableget(b->getHash());
         if (entry == nullptr) break;
-        if (entry->depth <= 0) break;
+        if (entry->depth <= 0 && entry->tableMove.start == 0 && entry->tableMove.end ==0 ) break;
         std::cout << " ";
         entry->tableMove.print(); 
         b = apply(b, entry->tableMove);
