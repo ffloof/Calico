@@ -12,7 +12,7 @@ struct searcher {
     int nodes;
     std::vector<uint64_t> prev;
     uint64_t repetition[255];
-    int64_t history[14][120];
+    int64_t history[13][128];
     move killers[64];
     std::chrono::time_point<std::chrono::steady_clock> startTime;
     int timeAlloc;
@@ -51,6 +51,7 @@ struct searcher {
     }
 
     int qsearch(board* b, int alpha, int beta) {
+        
         uint64_t hash = b->getHash();
         push(hash, b->ply);
 
@@ -79,6 +80,8 @@ struct searcher {
             move m = moves[i];
             priorities[i] = (b->squares[m.end] * 16) - b->squares[m.start] + 16;
         }
+
+
 
         move bestMove = NULLMOVE;
         bool raisedAlpha = true;
@@ -121,17 +124,22 @@ struct searcher {
         if (!raisedAlpha) boundtype = UPPERBOUND;
         if (bestScore >= beta) boundtype = LOWERBOUND;
         tablesetempty(hash, bestMove, bestScore, boundtype);
-        
+    
         return bestScore;
     }
 
-    int alphabeta(board* b, int alpha, int beta, int depth){
+    int alphabeta(board* b, int alpha, int beta, int depth){        
         if (depth <= 0) {
             return qsearch(b, alpha, beta);
         }
 
+        
+
         bool pv = beta > alpha + 1;
 
+
+        
+        
         uint64_t hash = b->getHash();
         if (isRepetition(hash, b->ply)) return DRAW_SCORE;
         push(hash, b->ply);
@@ -146,6 +154,7 @@ struct searcher {
             tentry = tableget(hash);
         }
 
+
         move tablemove;
         if (tentry != nullptr) {
             tablemove = tentry->tableMove;
@@ -157,11 +166,15 @@ struct searcher {
                 }
             }
         }
+
         
+
         // TODO: we could call the part that defines inCheck here seperately but then we lose out on mobility evaluation
         std::vector<move> moves = b->GenerateMoves();
-        int eval = evaluate(b);
         
+        int eval = evaluate(b);
+
+
         // Reverse futility pruning
         if (!pv && !b->inCheck && depth <= 5 && eval >= beta + (100*depth)) {
             return eval;
@@ -190,6 +203,8 @@ struct searcher {
             if(m.start == killermove.start && m.end == killermove.end) priorities[i] += KILLER_PRIORITY;
         }
 
+        
+
         int legals = 0;
         int quietsLeft = (depth * depth) - depth + 6;
         if (pv) quietsLeft = 100;
@@ -209,6 +224,8 @@ struct searcher {
                 }
             }
 
+            
+
             move m = moves[bestIndex];
             std::swap(moves[i],moves[bestIndex]);
             std::swap(priorities[i],priorities[bestIndex]);
@@ -216,8 +233,8 @@ struct searcher {
             board* nextBoard = apply(b,m);
             if (nextBoard == nullptr) continue;
             legals++;
-
             
+
             // PVS
             int score = 0;
             if (legals == 1) {
@@ -246,6 +263,7 @@ struct searcher {
                     alpha = score;
                     if (score >= beta) { 
                         // Update killers
+                        
                         killers[b->ply] = m;
                         
                         // Update history
@@ -262,6 +280,7 @@ struct searcher {
                     }
                 }
             }
+
 
             if (quietsLeft <= 0) {
                 break;

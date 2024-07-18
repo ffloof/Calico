@@ -17,23 +17,44 @@
 */
 
 const int color[2] = {-1,1};
-const int N = -10, S = 10, W = -1, E = 1;
-const int8_t EMPTY = 0, BORDER = 1, PAWN = 2, KNIGHT = 4, BISHOP = 6, ROOK = 8, QUEEN = 10, KING = 12;
-const int A8 = 21, H8 = 28, A1 = 91, H1 = 98; 
+const int N = -16, S = 16, W = -1, E = 1;
+const int8_t EMPTY = 0, PAWN = 6, KNIGHT = 5, BISHOP = 4, ROOK = 3, QUEEN = 2, KING = 1;
+const int8_t BLACK = 6;
+const int8_t piececolor[2] = {6,0};
+const int A8 = 0, H8 = 7, A1 = 112, H1 = 119;
+
+const int lookup[256] = {
+    N+W, 0, 0, 0, 0, 0, 0, N, 0, 0, 0, 0, 0, 0, N+E, 0,
+    0, N+W, 0, 0, 0, 0, 0, N, 0, 0, 0, 0, 0, N+E, 0, 0, 
+    0, 0, N+W, 0, 0, 0, 0, N, 0, 0, 0, 0, N+E, 0, 0, 0, 
+    0, 0, 0, N+W, 0, 0, 0, N, 0, 0, 0, N+E, 0, 0, 0, 0, 
+    0, 0, 0, 0, N+W, 0, 0, N, 0, 0, N+E, 0, 0, 0, 0, 0, 
+    0, 0, 0, 0, 0, N+W, 0, N, 0, N+E, 0, 0, 0, 0, 0, 0, 
+    0, 0, 0, 0, 0, 0, N+W, N, N+E, 0, 0, 0, 0, 0, 0, 0, 
+    W, W, W, W, W, W, W, 0, E, E, E, E, E, E, E, 0, 
+    0, 0, 0, 0, 0, 0, S+W, S, S+E, 0, 0, 0, 0, 0, 0, 0, 
+    0, 0, 0, 0, 0, S+W, 0, S, 0, S+E, 0, 0, 0, 0, 0, 0, 
+    0, 0, 0, 0, S+W, 0, 0, S, 0, 0, S+E, 0, 0, 0, 0, 0, 
+    0, 0, 0, S+W, 0, 0, 0, S, 0, 0, 0, S+E, 0, 0, 0, 0, 
+    0, 0, S+W, 0, 0, 0, 0, S, 0, 0, 0, 0, S+E, 0, 0, 0, 
+    0, S+W, 0, 0, 0, 0, 0, S, 0, 0, 0, 0, 0, S+E, 0, 0, 
+    S+W, 0, 0, 0, 0, 0, 0, S, 0, 0, 0, 0, 0, 0, S+E, 0, 
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+};
 
 std::string squareToStr(int n){
-    int rank = (n / 10)-2;
-    int file = (n % 10)-1;    
+    int rank = n >> 4;
+    int file = n & 7;    
     return {char('a'+file),char('1'+(7-rank))};
 }
 
 int strToSquare(std::string str){
     int file = str[0] - 'a';
     int rank = 7-(str[1] - '1');
-    return (rank * 10) + file + A8;
+    return (rank * 16) + file;
 }
 
-const std::string pieceChars = ".-pPnNbBrRqQkK";
+const std::string pieceChars = ".KQRBNPkqrbnp";
 
 char pieceToChar(int8_t piece){
     return pieceChars[piece];
@@ -43,8 +64,6 @@ int8_t charToPiece(char c){
    return pieceChars.find(c);
 }
 
-#define S(a, b) (a + (b * 0x10000))
-
 struct move {
     int8_t start;
     int8_t end;
@@ -52,14 +71,14 @@ struct move {
     void print(int8_t promoflag=EMPTY){
         std::cout << squareToStr(start); 
         std::cout << squareToStr(end);
-        if (promoflag != EMPTY) std::cout << pieceToChar(promoflag&14);
+        if (promoflag != EMPTY) std::cout << pieceToChar(promoflag);
     }
 };
 
-move NULLMOVE = move{};
+move NULLMOVE = move{9,9};
 
 struct board {
-    int8_t squares[120];
+    int8_t squares[128];
     int kings[2]; 
     int enpassant;
     uint64_t hash;
@@ -81,22 +100,23 @@ struct board {
 
         for (int i=A8; i<=H1; i++) {
             int8_t piece = squares[i];
-            if (piece < PAWN) continue;
-            if ((piece & 1) != whiteToMove) continue;
+            if (piece == EMPTY) continue;
+            if ((piece <= 6) != whiteToMove) continue;
 
-            int8_t piecetype = piece & 14;
+            int8_t piecetype = piece;
+            if (piece > 6) piecetype -= 6;
 
             switch(piecetype){
                 case PAWN: {
-                    addMove(&moves, i, i+advance+W, true);
-                    addMove(&moves, i, i+advance+E, true);
-                    if (squares[i+advance] == EMPTY) {
-                        addMove(&moves, i, i+advance, capturesOnly);
-                        if (squares[i+advance+advance] == EMPTY && isHomeRow(i)) {
-                            addMove(&moves, i, i+advance+advance, capturesOnly);
+                        if (valid(i+advance+W)) addMove(&moves, i, i+advance+W, true);
+                        if (valid(i+advance+E)) addMove(&moves, i, i+advance+E, true);
+                        if (squares[i+advance] == EMPTY) {
+                            addMove(&moves, i, i+advance, capturesOnly);
+                            if (squares[i+advance+advance] == EMPTY && isHomeRow(i)) {
+                                addMove(&moves, i, i+advance+advance, capturesOnly);
+                            }
                         }
-                    }
-                    break;
+                        break;
                     }
                 case KNIGHT:
                     PieceMoves(&moves, i, std::vector<int>{N+N+W,N+N+E,S+S+W,S+S+E,W+W+N,W+W+S,E+E+N,E+E+S}, false, capturesOnly);
@@ -104,9 +124,10 @@ struct board {
                 case BISHOP:
                     PieceMoves(&moves, i, std::vector<int>{N+W,N+E,S+W,S+E}, true, capturesOnly);
                     break;
-                case ROOK:
+                case ROOK: {
                     PieceMoves(&moves, i, std::vector<int>{N,S,E,W}, true, capturesOnly);
                     break;
+                    }
                 case QUEEN:
                     PieceMoves(&moves, i, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, true, capturesOnly);
                     break;
@@ -114,11 +135,16 @@ struct board {
                     PieceMoves(&moves, i, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, false, capturesOnly);
                     break;
             }
-        }        
+        }
+
+
+             
+
+        
 
         if (enpassant != 0) {
             for (int8_t origin : {enpassant-advance+W, enpassant-advance+E}) {
-                if (squares[origin] == PAWN + whiteToMove) {
+                if (squares[origin] == PAWN + piececolor[whiteToMove]) {
                     addMove(&moves, origin, enpassant, capturesOnly);
                 }
             }
@@ -140,28 +166,28 @@ struct board {
         return moves;
     }
 
-    int PieceMoves(std::vector<move>* moves, int start, std::vector<int> pattern, bool ray, bool capturesOnly) {
-        int mobility = 0;
+    bool valid(int n) {
+        return (n & 0x88) == 0;
+    }
+
+    void PieceMoves(std::vector<move>* moves, int start, std::vector<int> pattern, bool ray, bool capturesOnly) {
         for (int direction: pattern) {
-            for (int end=start+direction; true; end+=direction) {
+            for (int end=start+direction; valid(end); end+=direction) {
                 addMove(moves, start, end, capturesOnly);
-                mobility++; // TODO: don't increase mobility if it is border or a friendly piece on square
                 if (squares[end] != EMPTY || !ray) break;
             }
         }
-        return mobility;
     }
 
     void addMove(std::vector<move>* moves, int8_t start, int8_t end, bool capturesOnly) {
         if (capturesOnly && squares[end] == EMPTY) return;
-        if (squares[end] == BORDER) return;
-        if (squares[end] != EMPTY && (whiteToMove == (squares[end] & 1))) return;
+        if (squares[end] != EMPTY && (whiteToMove == (squares[end] <= 6))) return;
 
         moves->push_back(move{start,end});
     }
 
     bool isHomeRow(int index) {
-        int rank = (index / 10)-2;
+        int rank = index >> 4;
         if (whiteToMove) return rank == 6;
         return rank == 1;
     }
@@ -170,37 +196,26 @@ struct board {
         std::vector<int> pawnAttacks = { S+W,S+E };
         if (whiteToMove) pawnAttacks = { N+W,N+E };
         
-        bool attacked =  scan(PAWN + !whiteToMove, index, pawnAttacks, false) ||
-            scan(KNIGHT + !whiteToMove, index, std::vector<int>{N+N+W,N+N+E,S+S+W,S+S+E,W+W+N,W+W+S,E+E+N,E+E+S}, false) ||
-            scan(BISHOP + !whiteToMove, index, std::vector<int>{N+W,N+E,S+W,S+E}, true) ||
-            scan(ROOK + !whiteToMove, index, std::vector<int>{N,S,E,W}, true) ||
-            scan(QUEEN + !whiteToMove, index, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, true) ||
-            scan(KING + !whiteToMove, index, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, false);
+        bool attacked =  scan(PAWN + piececolor[!whiteToMove], index, pawnAttacks, false) ||
+            scan(KNIGHT + piececolor[!whiteToMove], index, std::vector<int>{N+N+W,N+N+E,S+S+W,S+S+E,W+W+N,W+W+S,E+E+N,E+E+S}, false) ||
+            scan(BISHOP + piececolor[!whiteToMove], index, std::vector<int>{N+W,N+E,S+W,S+E}, true) ||
+            scan(ROOK + piececolor[!whiteToMove], index, std::vector<int>{N,S,E,W}, true) ||
+            scan(QUEEN + piececolor[!whiteToMove], index, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, true) ||
+            scan(KING + piececolor[!whiteToMove], index, std::vector<int>{N,S,E,W,N+W,N+E,S+W,S+E}, false);
         return attacked;
     }
 
     bool fastAttacked(int index, int start) {
         int delta = start - index;
-
-        if (delta < 0) {
-            if (delta > -8) return scan(ROOK + !whiteToMove, index, std::vector<int>{-1}, true) || scan(QUEEN + !whiteToMove, index, std::vector<int>{-1}, true);
-            if (delta % -10 == 0) return scan(ROOK + !whiteToMove, index, std::vector<int>{-10}, true) || scan(QUEEN + !whiteToMove, index, std::vector<int>{-10}, true);
-            if (delta % -9 == 0) return scan(BISHOP + !whiteToMove, index, std::vector<int>{-9}, true) || scan(QUEEN + !whiteToMove, index, std::vector<int>{-9}, true);
-            if (delta % -11 == 0) return scan(BISHOP + !whiteToMove, index, std::vector<int>{-11}, true) || scan(QUEEN + !whiteToMove, index, std::vector<int>{-11}, true);
-            
-        } else {
-            if (delta < 8) return scan(ROOK + !whiteToMove, index, std::vector<int>{1}, true) || scan(QUEEN + !whiteToMove, index, std::vector<int>{1}, true);
-            if (delta % 10 == 0) return scan(ROOK + !whiteToMove, index, std::vector<int>{10}, true) || scan(QUEEN + !whiteToMove, index, std::vector<int>{10}, true);
-            if (delta % 9 == 0) return scan(BISHOP + !whiteToMove, index, std::vector<int>{9}, true) || scan(QUEEN + !whiteToMove, index, std::vector<int>{9}, true);
-            if (delta % 11 == 0) return scan(BISHOP + !whiteToMove, index, std::vector<int>{11}, true) || scan(QUEEN + !whiteToMove, index, std::vector<int>{11}, true);
-        }
-
-        return false;
+        int checkdir = lookup[delta + 0x77];
+        if (checkdir == 0) return false;  
+        else if (checkdir == N || checkdir == S || checkdir == E || checkdir == W) return scan(ROOK + piececolor[!whiteToMove], index, std::vector<int>{checkdir}, true) || scan(QUEEN + piececolor[!whiteToMove], index, std::vector<int>{checkdir}, true);
+        return scan(BISHOP + piececolor[!whiteToMove], index, std::vector<int>{checkdir}, true) || scan(QUEEN + piececolor[!whiteToMove], index, std::vector<int>{checkdir}, true);
     }
 
     bool scan(int8_t find, int start, std::vector<int> pattern, bool ray){
         for (int direction: pattern) {
-            for (int end = start + direction; true; end += direction) {
+            for (int end = start + direction; valid(end); end += direction) {
                 int8_t piece = squares[end];
                 if (!ray || piece != EMPTY) {
                     if (piece == find) return true;
@@ -225,10 +240,14 @@ struct board {
     }
 
     void print(){
-        for (int i=0;i<120;i++){
+        for (int i=0;i<128;i++){
             if (i == enpassant && enpassant != 0) std::cout << "x";
             else std::cout << pieceToChar(squares[i]);
-            if (i%10 == 9) std::cout << std::endl;
+            if (i%16 == 7) {
+                i += 8;
+                std::cout << std::endl;
+            }
+            
         }
         std::cout << getHash() << std::endl;
     }
@@ -251,9 +270,9 @@ board* apply(board* oldBoard, move m){
     cBoard->ply++;
 
     cBoard->updateEval(m.start, m.end, movingPiece, 0);
-    if (victimPiece > 0) cBoard->updateEval(m.end, 0, victimPiece, 1);
+    if (victimPiece > 0) cBoard->updateEval(m.end, 127, victimPiece, 1);
 
-    if ((movingPiece & 14) == PAWN) {
+    if (movingPiece == PAWN || movingPiece == PAWN + BLACK) {
         if (abs(m.end-m.start) == (2 * S)) {
             // DOUBLE PUSH
             cBoard->enpassant = m.end + (S*color[isWhite]);
@@ -261,24 +280,29 @@ board* apply(board* oldBoard, move m){
             // EN PASSANT
             int exPawnSquare = m.end + (S*color[isWhite]);
             cBoard->edit(exPawnSquare, EMPTY);
-            cBoard->updateEval(exPawnSquare, 0, PAWN+(!isWhite), 1);
+            cBoard->updateEval(exPawnSquare, 127, PAWN+piececolor[!isWhite], 1);
         }
 
         // Promotion if a pawn ends on either of the back ranks, promote, always to a queen
         if (m.end <= H8 || m.end >= A1) {
-            cBoard->edit(m.start, QUEEN + isWhite); // Have to make a weird call to edit to make sure hash and psqt are updated correctly
-            cBoard->updateEval(m.start, 0, movingPiece, 0);
-            cBoard->updateEval(0, m.end, QUEEN+isWhite, victimPiece > 0 ? 2 : 1);
-            movingPiece = QUEEN + isWhite; 
+            cBoard->edit(m.start, QUEEN + piececolor[isWhite]); // Have to make a weird call to edit to make sure hash and psqt are updated correctly
+            cBoard->updateEval(m.start, 127, movingPiece, 0);
+            cBoard->updateEval(0, m.end, QUEEN+piececolor[isWhite], victimPiece > 0 ? 2 : 1);
+            movingPiece = QUEEN + piececolor[isWhite];
         }   
     }
 
     cBoard->edit(m.end, movingPiece);
     cBoard->edit(m.start, EMPTY);
 
-    bool isKingMoving = ((movingPiece & 14) == KING);
+    bool isKingMoving = ((movingPiece == KING) || (movingPiece == KING + BLACK));
 
     if (!isKingMoving) {
+        /*if (cBoard->attacked(cBoard->kings[isWhite])) {
+            delete cBoard;
+            return nullptr;
+        }
+        */
         if (!cBoard->inCheck) {
             if (cBoard->fastAttacked(cBoard->kings[isWhite], m.start)) {
                 delete cBoard;
@@ -296,8 +320,8 @@ board* apply(board* oldBoard, move m){
             }
             //CASTLE LONG
             cBoard->edit(m.end + W + W, EMPTY);
-            cBoard->edit(m.end + E, ROOK+isWhite);
-            cBoard->updateEval(m.end + W + W, m.end + E, ROOK+isWhite, 1);
+            cBoard->edit(m.end + E, ROOK+piececolor[isWhite]);
+            cBoard->updateEval(m.end + W + W, m.end + E, ROOK+piececolor[isWhite], 1);
         }
         if (m.end - m.start == E + E) {
             if (cBoard->attacked(cBoard->kings[isWhite]+E)) {
@@ -306,8 +330,8 @@ board* apply(board* oldBoard, move m){
             }
             //CASTLE SHORT
             cBoard->edit(m.end + E, EMPTY);
-            cBoard->edit(m.end + W, ROOK+isWhite);
-            cBoard->updateEval(m.end + W, m.end + E, ROOK+isWhite, 1);
+            cBoard->edit(m.end + W, ROOK+piececolor[isWhite]);
+            cBoard->updateEval(m.end + W, m.end + E, ROOK+piececolor[isWhite], 1);
         }
         
         cBoard->longCastle[isWhite] = false;
@@ -325,13 +349,10 @@ board* apply(board* oldBoard, move m){
     if (m.start == A1 || m.end == A1) cBoard->longCastle[1] = false;
     if (m.start == A8 || m.end == A8) cBoard->longCastle[0] = false;
 
-    if (m.start == m.end) cBoard->updateEval(0,0,0,0); // Incase of null move
+    if (m.start == m.end) cBoard->updateEval(127,127,EMPTY,0); // Incase of null move
 
     cBoard->whiteToMove = !cBoard->whiteToMove;
     
-
-    
-
     return cBoard;   
 }
 
@@ -362,25 +383,12 @@ std::string afterWord(std::string str, std::string word) {
 
 // TODO: make this a proper constructor
 board newBoard(std::string fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") {
-    const std::map<char, int8_t> charToOffset = {{'/', 2},{'1', 1},{'2', 2},{'3', 3},{'4', 4},{'5', 5},{'6', 6},{'7', 7},{'8', 8},};
-    board b = board{.squares= {
-        1,1,1,1,1,1,1,1,1,1,
-        1,1,1,1,1,1,1,1,1,1,
-        1,0,0,0,0,0,0,0,0,1,
-        1,0,0,0,0,0,0,0,0,1,
-        1,0,0,0,0,0,0,0,0,1,
-        1,0,0,0,0,0,0,0,0,1,
-        1,0,0,0,0,0,0,0,0,1,
-        1,0,0,0,0,0,0,0,0,1,
-        1,0,0,0,0,0,0,0,0,1,
-        1,0,0,0,0,0,0,0,0,1,
-        1,1,1,1,1,1,1,1,1,1,
-        1,1,1,1,1,1,1,1,1,1,
-    }};    
+    const std::map<char, int8_t> charToOffset = {{'/', 8},{'1', 1},{'2', 2},{'3', 3},{'4', 4},{'5', 5},{'6', 6},{'7', 7},{'8', 8},};
+    board b = board{};    
 
     std::string position = beforeWord(fen, " ");
 
-    int8_t i = A8;
+    int8_t i = 0;
     for (char pchar : position) {
         if (charToOffset.count(pchar)) {
             i += charToOffset.at(pchar);

@@ -1,19 +1,17 @@
 #include "misc.cpp"
 #include "nnue.cpp"
 
-int standard[120] = {
-    64, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, 56, 57, 58, 59, 60, 61, 62, 63, -1,
-    -1, 48, 49, 50, 51, 52, 53, 54, 55, -1,
-    -1, 40, 41, 42, 43, 44, 45, 46, 47, -1,
-    -1, 32, 33, 34, 35, 36, 37, 38, 39, -1,
-    -1, 24, 25, 26, 27, 28, 29, 30, 31, -1,
-    -1, 16, 17, 18, 19, 20, 21, 22, 23, -1,
-    -1,  8,  9, 10, 11, 12, 13, 14, 15, -1,
-    -1,  0,  1,  2,  3,  4,  5,  6,  7, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+int standard[128] = {
+    
+    56, 57, 58, 59, 60, 61, 62, 63, 64, 64, 64, 64, 64, 64, 64, 64, 
+    48, 49, 50, 51, 52, 53, 54, 55, 64, 64, 64, 64, 64, 64, 64, 64, 
+    40, 41, 42, 43, 44, 45, 46, 47, 64, 64, 64, 64, 64, 64, 64, 64, 
+    32, 33, 34, 35, 36, 37, 38, 39, 64, 64, 64, 64, 64, 64, 64, 64, 
+    24, 25, 26, 27, 28, 29, 30, 31, 64, 64, 64, 64, 64, 64, 64, 64, 
+    16, 17, 18, 19, 20, 21, 22, 23, 64, 64, 64, 64, 64, 64, 64, 64, 
+     8,  9, 10, 11, 12, 13, 14, 15, 64, 64, 64, 64, 64, 64, 64, 64, 
+     0,  1,  2,  3,  4,  5,  6,  7, 64, 64, 64, 64, 64, 64, 64, 64, 
+    
 };
 
 int convert[14] = {
@@ -32,6 +30,9 @@ void initNNUE(){
 NNUEdata nn_stack[256];
 NNUEdata* stack[3];
 
+int NNUEpieces[33];
+int NNUEsquares[33];
+
 int proxynnue(int player, int* pieces, int* squares, int ply){
     nn_stack[ply].accumulator.computedAccumulation = 0;
     
@@ -39,7 +40,7 @@ int proxynnue(int player, int* pieces, int* squares, int ply){
     stack[0] = &nn_stack[ply];
     stack[1] = (ply > 1) ? &nn_stack[ply - 1] : 0;
     stack[2] = (ply > 2) ? &nn_stack[ply - 2] : 0;
-    int score = nnue_evaluate_incremental(player, pieces, squares, stack);
+    int score = nnue_evaluate_incremental(player, NNUEpieces, NNUEsquares, stack);
 
     //std::cout << ply << "=" << score << std::endl;
 
@@ -47,30 +48,27 @@ int proxynnue(int player, int* pieces, int* squares, int ply){
 } 
 
 
-int pieces[33];
-int squares[33];
+
 
 int evaluate(board* b){
-    // b->print();
-    
-    pieces[0] = 1;
-    pieces[1] = 7;
-    squares[0] = standard[b->kings[1]];
-    squares[1] = standard[b->kings[0]];
+    NNUEpieces[0] = KING;
+    NNUEpieces[1] = KING + BLACK;
+    NNUEsquares[0] = standard[b->kings[1]];
+    NNUEsquares[1] = standard[b->kings[0]];
 
     int i = 2;
     for (int sq = A8;sq<=H1;sq++) {
-        if (b->squares[sq] <= BORDER || b->squares[sq] >= KING) continue;
+        if (b->squares[sq] == EMPTY || b->squares[sq] == KING || b->squares[sq] == KING + BLACK) continue;
         
-        pieces[i] = convert[b->squares[sq]];
-        squares[i] = standard[sq];
+        NNUEpieces[i] = b->squares[sq];
+        NNUEsquares[i] = standard[sq];
 
         i++;
     }
 
-    pieces[i] = 0;
+    NNUEpieces[i] = 0;
 
-    int score = proxynnue(!b->whiteToMove, pieces, squares, b->ply);
+    int score = proxynnue(!b->whiteToMove, NNUEpieces, NNUEsquares, b->ply);
 
     return score;
 }
@@ -78,24 +76,7 @@ int evaluate(board* b){
 void board::updateEval(int from, int to, int8_t piece, int changeIndex=0){
     DirtyPiece* dp = &(nn_stack[ply].dirtyPiece);
     dp->dirtyNum = changeIndex + 1;
-    dp->pc[changeIndex]    = convert[piece];
+    dp->pc[changeIndex]    = piece;
     dp->from[changeIndex]  = standard[from];
     dp->to[changeIndex]    = standard[to];
 }
-
-
-
-int mailbox[64] = {
-    21, 22, 23, 24, 25, 26, 27, 28,
-    31, 32, 33, 34, 35, 36, 37, 38,
-    41, 42, 43, 44, 45, 46, 47, 48,
-    51, 52, 53, 54, 55, 56, 57, 58,
-    61, 62, 63, 64, 65, 66, 67, 68,
-    71, 72, 73, 74, 75, 76, 77, 78,
-    81, 82, 83, 84, 85, 86, 87, 88,
-    91, 92, 93, 94, 95, 96, 97, 98
-};
-
-
-
-int phases[14] = {0,0,0,0,2,2,2,2,3,3,8,8,0};

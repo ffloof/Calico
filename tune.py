@@ -3,6 +3,7 @@ import chess
 import numpy as np
 import random
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 dataPath = sys.argv[1]
 
@@ -47,7 +48,7 @@ rays = [ False, False, False, True, True, True, False]
 patterns = [ [], [], [N+N+W,N+N+E,S+S+W,S+S+E,W+W+N,W+W+S,E+E+N,E+E+S], [N+W,N+E,S+W,S+E], [N,S,E,W], [N,S,E,W,N+W,N+E,S+W,S+E], [N,S,E,W,N+W,N+E,S+W,S+E]]
 
 for line in tqdm(lines):
-    if len(outputs) > 500000:
+    if len(outputs) > 400000:
         break
 
     packed = line.split("c9")
@@ -57,8 +58,6 @@ for line in tqdm(lines):
     
     phase = 0
     material = np.zeros(7)
-    location = np.zeros((7,64))
-    pawns = np.zeros((2,10))
 
     virtualboard = [
         1,1,1,1,1,1,1,1,1,1,
@@ -75,6 +74,20 @@ for line in tqdm(lines):
         1,1,1,1,1,1,1,1,1,1,
     ]
 
+    kings = [-1, -1]
+    
+
+    for i in range(64):
+        piece = board.piece_at(i)
+        if piece == None:
+            continue
+
+        if piece.piece_type == 6:
+            kings[piece.color] = ((i & 7) < 4)
+
+
+    dynamicpawns = np.zeros((4,64))
+
     for i in range(64):
         piece = board.piece_at(i)
         if piece == None:
@@ -89,13 +102,40 @@ for line in tqdm(lines):
         if piece.color:
             j = i ^ 56
 
-        location[piece.piece_type][j] += sign[piece.color]
+        if piece.piece_type == 1:
+            pawnSide = ((i & 7) < 4)
+            sameWhiteKing = int(pawnSide == kings[0])
+            sameBlackKing = int(pawnSide == kings[1])
 
-        if piece.piece_type == 1: # (pawn)
-            pawns[int(piece.color)][(j%8)+1] += 1
+            whitetypeindex = sameWhiteKing * 2 + sameBlackKing
+            blacktypeindex = sameBlackKing * 2 + sameWhiteKing
 
-    attackers = np.zeros((14,14)) # TODO: add another table of attackers with tempo
-    mobilities = np.zeros(7)
+            if pawnSide:
+                j = j ^ 7
+            
+            typeindex = blacktypeindex
+            if piece.color:
+                typeindex = whitetypeindex
+
+            dynamicpawns[typeindex, j] += sign[piece.color]
+
+    dynamicpawns = dynamicpawns.reshape((4,8,8))
+    dynamicpawns = dynamicpawns[:,:,4:]
+    dynamicpawns.reshape((4,32))
+
+    #print(dynamicpawns)
+    #print(kings)
+    #print(fen)
+    #sys.exit()
+
+
+
+
+
+
+    #attackers = np.zeros((14,14)) # TODO: add another table of attackers with tempo
+    domesticmobilities = np.zeros(7)
+    foreignmobilities = np.zeros(7)
 
     for sq in range(len(virtualboard)):
         piece = virtualboard[sq]
@@ -104,64 +144,67 @@ for line in tqdm(lines):
         pattern = patterns[piecetype]
 
         if piece == 2:
-            pattern = [S+W,S+E]
+            #pattern = [S+W,S+E]
+            pattern = []
         elif piece == 3:
-            pattern = [N+W,N+E]
+            #pattern = [N+W,N+E]
+            pattern = []
+        
+        domesticmobility = 0
+        foreignmobility = 0
 
-        mobility = 0
         for direction in pattern:
             current = sq
             for i in range(1,8):
                 current += direction
+
+                domestic = (current >= 60)
+                if piece & 1 == 1:
+                    domestic = not domestic
+
                 if virtualboard[current] != 0:
-                    attackers[piece][virtualboard[current]] += 1
+                    if ((piece & 1) == (virtualboard[current] & 1)) or virtualboard[current] == 1:
+                        break
+
+                    if domestic:
+                        domesticmobility += 1
+                    else:
+                        foreignmobility += 1
                     break
-                mobility += 1
+
                 if not isray:
                     break
-        mobilities[piecetype] += mobility * sign[piece & 1]
+        
+        #if virtualboard[sq] > 1:
+            #print("  pPnNbBrRqQkK"[virtualboard[sq]] , domesticmobility * sign[piece & 1], foreignmobility * sign[piece & 1])
+        domesticmobilities[piecetype] += domesticmobility * sign[piece & 1]
+        foreignmobilities[piecetype] += foreignmobility * sign[piece & 1]
 
-    isolated_pawns = np.zeros(10)
-    fullpass_pawns = np.zeros(10)
-    semiopen_files = np.zeros(10)
-
-    for file in range(1,9):
-        if pawns[0][file-1] == 0 and pawns[0][file+1] == 0:
-            isolated_pawns[file] -= pawns[0][file]
-            if pawns[0][file] == 0 and pawns[1][file] != 0:
-                fullpass_pawns[file] += 1 
-        if pawns[1][file-1] == 0 and pawns[1][file+1] == 0:
-            isolated_pawns[file] += pawns[1][file]
-            if pawns[1][file] == 0 and pawns[0][file] != 0:
-                fullpass_pawns[file] -= 1 
-
-        if pawns[0][file] == 0:
-            semiopen_files[file] -= 1
-        if pawns[1][file] == 0:
-            semiopen_files[file] += 1
 
     sidetomove = np.zeros(1)
     sidetomove[0] = sign[board.turn]
 
+
+    
     if phase > 44:
         phase = 44
     
     start_weight = phase / 44
     end_weight = (44 - phase) / 44
 
-    values = np.concatenate([material, location.flatten(), isolated_pawns, fullpass_pawns, sidetomove, mobilities, attackers.flatten()])
+    values = np.concatenate([material, domesticmobilities, foreignmobilities, sidetomove, dynamicpawns.flatten()])
     tapered_values = np.concatenate([values * start_weight, values * end_weight])
 
     inputs.append(tapered_values)
     outputs.append(outcome)
 
-    #print(fen)
-    #print("isolated", isolated_pawns)
-    #print("open", semiopen_files)
-    #print("passed", fullpass_pawns)
-    #print(mobilities)
-    #print(attackers)
-    #sys.exit()
+    '''
+    print(fen)
+
+    print(material)
+    print(domesticmobilities)
+    print(foreignmobilities)
+    sys.exit()'''
 
 
 
@@ -190,7 +233,7 @@ def printflat(start,end):
         printcomma(y)
     print("")
 
-def printpsqt(start,end,size): # m allows for adjusting psqt by material
+def printpsqt(start,end,size=8): # m allows for adjusting psqt by material
     x = weights[start:end]
     i = 0
     for y in range(start,end):
@@ -199,34 +242,22 @@ def printpsqt(start,end,size): # m allows for adjusting psqt by material
             print("")
         i += 1
 
+def plotpsqt(start, label=""):
+    x = weights[start:start+32] * 128
+    y = weights[start+half:start+half+32] * 128
+    x = x.reshape((8,4))
+    y = y.reshape((8,4))
+    fig, (ax1, ax2) = plt.subplots(2)
+    ax1.imshow(x, vmin=-100, vmax=100)
+    ax1.set_title(label + " midgame")
+    ax2.imshow(y, vmin=-100, vmax=100)
+    ax2.set_title(label + " endgame")
+    plt.show()
+
 
 
 print("Bias:", bias)
-
-print("Material")
-printflat(0,7)
-
-piece = ["empty","pawn","knight","bishop","rook","queen","king"]
-
-for a in range(7):
-    piecename = piece[a]
-    print("\npsqt", piecename)
-    printpsqt(7+64*a,7+64*(a+1),size=8)
-
-print("Isolated")
-printflat(7*64+7,7*64+17)
-
-print("Passed")
-printflat(7*64+17,7*64+27)
-
-print("Tempo")
-printflat(7*64+27,7*64+28)
-
-print("Mobility")
-printflat(7*64+28,7*64+35)
-
-print("Attackers")
-printpsqt(7*64+35,7*64+35+(14*14),size=14)
+print("Weights:", weights)
 
 print("Loss curve:", mlp_regressor.loss_curve_)
 
@@ -239,3 +270,17 @@ print("Largest residual:", outputs[index_largest_residual], y_pred[index_largest
 
 print("farout", np.sum(y_pred[y_pred < -0.1]) + np.sum(y_pred[y_pred > 1.1]))
 print("r^2", mlp_regressor.score(inputs, outputs))
+
+printflat(0,7)
+printflat(7,14)
+printflat(14,21)
+printflat(21,22)
+#printpsqt(22,86)
+#printpsqt(86,150)
+#printpsqt(150,214)
+#printpsqt(214,278)
+
+plotpsqt(22, "Queenside vs Queenside")
+plotpsqt(54, "Kingside vs Queenside")
+plotpsqt(86, "Queenside vs Kingside")
+plotpsqt(118, "Kingside vs Kingside")

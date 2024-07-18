@@ -9,7 +9,7 @@ void initZobrists(){
     std::mt19937_64 mt(rd());
     std::uniform_int_distribution<uint64_t> rng;
 
-    for(int x=2;x<16;x++){
+    for(int x=1;x<16;x++){
         for(int y=0;y<128;y++) zobrist[x][y] = rng(mt);
     }
 
