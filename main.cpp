@@ -33,9 +33,9 @@ int main(){
     std::string line;
 
     std::ofstream outputFile("inputlog.txt");
-    outputFile << "START" << std::endl;
 
-    while (std::getline(std::cin, line)) {
+    while (true) {
+        std::getline(std::cin, line);
         outputFile << line << std::endl;
         std::string command = beforeWord(line, " ");
         std::string arguments = afterWord(line, " ");
@@ -43,8 +43,7 @@ int main(){
         if (command=="uci"){
             std::cout << "id name Calico" << std::endl;
             std::cout << "id author ffloof" << std::endl;
-            std::cout << "option name Threads type spin default 1 min 1 max 1" << std::endl;
-            std::cout << "option name Hash type spin default 1 min 1 max 1" << std::endl;
+            std::cout << "option name ScreamIntoVoid type string default <empty>" << std::endl;
             std::cout << "uciok" << std::endl;
         } else if (command == "isready") {
             std::cout << "readyok" << std::endl;

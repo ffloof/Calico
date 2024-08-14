@@ -43,6 +43,11 @@
 #include "nnue.hpp"
 #undef DLL_EXPORT
 
+#ifdef NNUE_EMBEDDED
+#include "incbin.h"
+INCBIN(Network, NNUE_FILE);
+#endif
+
 #define KING(c)    ( (c) ? bking : wking )
 #define IS_KING(p) ( ((p) == wking) || ((p) == bking) )
 //-------------------
@@ -1247,6 +1252,14 @@ static bool load_eval_file(const char *evalFile)
   map_t mapping;
   size_t size;
 
+  #ifdef NNUE_EMBEDDED
+  if (strcmp(evalFile, NNUE_FILE) == 0) {
+    evalData = gNetworkData;
+    mapping = 0;
+    size = gNetworkSize;
+  } else
+#endif
+
   {
     FD fd = open_file(evalFile);
     if (fd == FD_ERR) return false;
@@ -1265,13 +1278,19 @@ static bool load_eval_file(const char *evalFile)
 /*
 Interfaces
 */
+static char* loadedFile = nullptr;
+
 DLLExport void _CDECL nnue_init(const char* evalFile)
 {
-  printf("Loading NNUE : %s\n", evalFile);
+
+  if (loadedFile && strcmp(evalFile, loadedFile) == 0) return;
+  if (loadedFile) free(loadedFile);
+
+  //printf("Loading NNUE : %s\n", evalFile);
   fflush(stdout);
 
   if (load_eval_file(evalFile)) {
-    printf("NNUE loaded !\n");
+    //printf("NNUE loaded !\n");
     fflush(stdout);
     return;
   }

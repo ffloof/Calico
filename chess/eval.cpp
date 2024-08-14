@@ -1,3 +1,5 @@
+#define NNUE_EMBEDDED
+#define NNUE_FILE "nn-04cf2b4ed1da.nnue"
 #include "misc.cpp"
 #include "nnue.cpp"
 

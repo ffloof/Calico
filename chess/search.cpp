@@ -168,10 +168,6 @@ struct searcher {
         }
 
         
-
-        // TODO: we could call the part that defines inCheck here seperately but then we lose out on mobility evaluation
-        std::vector<move> moves = b->GenerateMoves();
-        
         int eval = evaluate(b);
 
 
@@ -193,6 +189,7 @@ struct searcher {
             }
         }
 
+        std::vector<move> moves = b->GenerateMoves();
         std::vector<int> priorities(moves.size());
         move killermove = killers[b->ply];
         for (int i=0;i<moves.size();i++){
@@ -319,7 +316,7 @@ void iterativeSearch(board* b, int searchTime, std::vector<uint64_t> prevHashs) 
             int score = s.alphabeta(b, lastscore - 25, lastscore + 25, depth);
             if ((score <= (lastscore - 25)) || ((lastscore + 25) <= score)) score = s.alphabeta(b, -MATE_SCORE, MATE_SCORE, depth);
 
-            std::cout << "info depth " << depth << " score cp " << score << " time " << s.ellapsedTime() << " nodes " << s.nodes << " ";
+            std::cout << "info depth " << depth << " score cp " << score << " time " << s.ellapsedTime() + 1 << " nodes " << s.nodes << " ";
             printpv(b);
             std::cout << std::endl;
 
