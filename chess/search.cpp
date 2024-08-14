@@ -8,6 +8,8 @@ const int TABLEMOVE_PRIORITY = 1000000000;
 const int CAPTURE_PRIORITY   = 100000000;
 const int KILLER_PRIORITY    = 10000000;
 
+const int deltas[7] = {0, 180, 390, 442, 718, 1332, 0};
+
 struct searcher {
     int nodes;
     std::vector<uint64_t> prev;
@@ -69,9 +71,9 @@ struct searcher {
         
         int standpat = evaluate(b);
         int bestScore = standpat;
-        if (bestScore >= beta) {
-            return bestScore;
-        }
+
+        if (bestScore >= beta) return bestScore;
+
         
         std::vector<move> moves = b->GenerateMoves(true);
         std::vector<int> priorities(moves.size());
@@ -100,6 +102,10 @@ struct searcher {
             move m = moves[bestIndex];
             std::swap(moves[i],moves[bestIndex]);
             std::swap(priorities[i],priorities[bestIndex]);
+
+            int8_t piecetype = b->squares[m.end];
+            if (piecetype > 6) piecetype -= 6;
+            if (standpat + deltas[piecetype] <= alpha) break;
 
             board* nextBoard = apply(b,m);
             if (nextBoard == nullptr) continue;
@@ -150,8 +156,8 @@ struct searcher {
             if(!pv) depth--; // Internal iterative reduction
 
             // Internal iterative deepening
-            alphabeta(b, alpha, beta, depth/2);
-            tentry = tableget(hash);
+            // alphabeta(b, alpha, beta, depth/2);
+            // tentry = tableget(hash);
         }
 
 
@@ -170,24 +176,22 @@ struct searcher {
         
         int eval = evaluate(b);
 
-
-        // Reverse futility pruning
-        if (!pv && !b->inCheck && depth <= 5 && eval >= beta + (100*depth)) {
-            return eval;
-        }
-
-        // Null move pruning
-        if (!pv && !b->inCheck && depth >= 2 && eval >= beta && b->phase > 8) {
-            board* nmBoard = apply(b, NULLMOVE);
-            if (nmBoard != nullptr) {
-                int nmReduction = 3 + (depth/3);
-                int nmScore = -alphabeta(nmBoard, -beta, -alpha, depth - nmReduction);
-                delete nmBoard;
-                if (nmScore >= beta) {
-                    return nmScore;
+        if (eval > beta && !pv) {
+            // Reverse futility pruning (RFP)
+            if (depth <= 4 && (eval >= beta + (60 * depth))) return eval;
+            // Null move pruning (NMP)
+            if (depth > 4 && !b->inCheck && b->phase > 8) {
+                board* nmBoard = apply(b, NULLMOVE);
+                if (nmBoard != nullptr) {
+                    int nmScore = -alphabeta(nmBoard, -beta, -alpha, (depth * 100 + beta - eval) / 186 - 1);
+                    delete nmBoard;
+                    if (nmScore >= beta) {
+                        return nmScore;
+                    }
                 }
             }
         }
+
 
         std::vector<move> moves = b->GenerateMoves();
         std::vector<int> priorities(moves.size());
@@ -203,7 +207,7 @@ struct searcher {
         
 
         int legals = 0;
-        int quietsLeft = (depth * depth) - depth + 6;
+        int quietsLeft = (depth * depth) - depth + 4;
         if (pv) quietsLeft = 100;
         int bestScore = -20000;
         move bestMove;
@@ -239,15 +243,18 @@ struct searcher {
             } else {
                 //LMR
                 //TODO: should we disallow history heuristic to make extensions with fmax
-                int reduction = ((legals / 16) + (depth / 6) + (legals > 4)) + (history[b->squares[m.start]][m.end]/200);
+                int reduction = (legals * 93 + depth * 144) / 1000 + (history[b->squares[m.start]][m.end]/172);
                 if ((b->squares[m.end] != EMPTY) || pv || b->inCheck || reduction < 0) {
                     reduction = 0;
                 } else {
                     quietsLeft -= 1;
                 }
-                score = -alphabeta(nextBoard, -alpha-1, -alpha, depth-1-reduction);
-                if (score > alpha && reduction > 0) score = -alphabeta(nextBoard, -alpha-1, -alpha, depth-1);
-                if (score > alpha && pv) score = -alphabeta(nextBoard, -beta, -alpha, depth-1);
+                int checkExtension = 0;
+                if (b->inCheck) checkExtension = 1;
+
+                score = -alphabeta(nextBoard, -alpha-1, -alpha, depth-reduction-1+checkExtension);
+                if (score > alpha && reduction > 0) score = -alphabeta(nextBoard, -alpha-1, -alpha, depth-1+checkExtension);
+                if (score > alpha && pv) score = -alphabeta(nextBoard, -beta, -alpha, depth-1+checkExtension);
             } 
 
             delete nextBoard;
@@ -278,9 +285,9 @@ struct searcher {
                 }
             }
 
-
-            if (quietsLeft <= 0) {
-                break;
+            if (!pv && b->squares[m.end] != 0){
+                if (quietsLeft <= 0) break;
+                if (depth <= 5 && eval + 127 * depth < alpha) break;
             }
         }
 
