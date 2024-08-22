@@ -88,7 +88,6 @@ struct board {
     bool inCheck;
 
     int score;
-    int phase;
     int ply;
 
     std::vector<move> GenerateMoves(bool capturesOnly=false){

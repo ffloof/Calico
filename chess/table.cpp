@@ -4,10 +4,12 @@ uint64_t zobristSTM[2];
 uint64_t zobristCastleS[2][2];
 uint64_t zobristCastleL[2][2];
 
+std::random_device rd;
+std::mt19937_64 mt(rd());
+std::uniform_int_distribution<uint64_t> rng;
+
 void initZobrists(){
-    std::random_device rd;
-    std::mt19937_64 mt(rd());
-    std::uniform_int_distribution<uint64_t> rng;
+    
 
     for(int x=1;x<16;x++){
         for(int y=0;y<128;y++) zobrist[x][y] = rng(mt);
@@ -39,6 +41,7 @@ struct ttentry {
     int16_t depth; 
     move tableMove;
     int8_t bound;
+    bool pv;
 };
 
 const int8_t LOWERBOUND = -1, EXACT = 0, UPPERBOUND = 1;
@@ -53,15 +56,14 @@ ttentry* tableget(uint64_t key) {
     return nullptr;
 }
 
-void tableset(uint64_t key, move m, int16_t depth, int16_t score, int8_t bound) {
-    ttable[key % tsize] = ttentry{key, score, depth, m, bound};
-}
-
-void tablesetempty(uint64_t key, move m, int16_t score, int8_t bound) {
+void tableset(uint64_t key, move m, int16_t depth, int16_t score, int8_t bound, bool pv) {
     ttentry* e = &ttable[key % tsize];
-    if (e->depth <= 1) {
-        ttable[key % tsize] = ttentry{key, score, 0, m, bound};
+    int storeddepth = e->depth << e->pv;
+    int compdepth = (depth << pv) + 2 + (depth/7);
+    if (storeddepth > compdepth) {
+        if (rng(mt) % 3 > 0) return; 
     }
+    ttable[key % tsize] = ttentry{key, score, depth, m, bound, pv};
 }
 
 void printpv(board* b){
@@ -70,7 +72,7 @@ void printpv(board* b){
     while (b != nullptr) {
         ttentry* entry = tableget(b->getHash());
         if (entry == nullptr) break;
-        if (entry->depth <= 0 && entry->tableMove.start == 0 && entry->tableMove.end ==0 ) break;
+        if (entry->depth <= 0 && (entry->tableMove.start == entry->tableMove.end)) break;
         std::cout << " ";
         entry->tableMove.print(); 
         b = apply(b, entry->tableMove);

@@ -68,7 +68,7 @@ int main(){
             try {
                 if (uciBoard.whiteToMove) totalTime = std::stoi(beforeWord(afterWord(arguments, "wtime"), " "));
                 else totalTime = std::stoi(beforeWord(afterWord(arguments, "btime"), " "));
-                iterativeSearch(&uciBoard, totalTime/50, prevPositions);
+                iterativeSearch(&uciBoard, totalTime/4, prevPositions);
             } catch(const std::invalid_argument& e) {
                 try {
                     totalTime = std::stoi(beforeWord(afterWord(arguments, "movetime"), " "));
