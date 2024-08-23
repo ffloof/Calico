@@ -1,8 +1,8 @@
 uint64_t zobrist[16][128];
 uint64_t zobristEP[128];
 uint64_t zobristSTM[2];
-uint64_t zobristCastleS[2][2];
-uint64_t zobristCastleL[2][2];
+uint64_t zobristCastleS[2];
+uint64_t zobristCastleL[2];
 
 std::random_device rd;
 std::mt19937_64 mt(rd());
@@ -16,18 +16,24 @@ void initZobrists(){
     }
 
     for(int y=0;y<128;y++) zobristEP[y] = rng(mt);
-    for(int y=0;y<2;y++) zobristSTM[y] = rng(mt);
-
-    for(int x=0;x<2;x++) {
-        for(int y=0;y<2;y++) zobristCastleS[y][x] = rng(mt);
-        for(int y=0;y<2;y++) zobristCastleL[y][x] = rng(mt);
+    for(int y=0;y<2;y++) {
+        zobristSTM[y] = rng(mt);
+        zobristCastleS[y] = rng(mt);
+        zobristCastleL[y] = rng(mt);
     }
 }
 
 uint64_t board::getHash(){
     // We add to the hash the sidetomove, enpassant, and castling rights
     // You could also try to keep these updated incrementally but I am too lazy
-    return (hash ^ zobristEP[enpassant] ^ zobristSTM[whiteToMove] ^ zobristCastleS[0][shortCastle[0]] ^ zobristCastleS[1][shortCastle[1]] ^ zobristCastleL[0][longCastle[0]] ^ zobristCastleL[1][longCastle[1]]);
+    uint64_t finalhash = hash ^ zobristEP[enpassant] ^ zobristSTM[whiteToMove];
+    if (shortCastle[0]) finalhash ^= zobristCastleS[0];
+    if (shortCastle[1]) finalhash ^= zobristCastleS[1];
+    if (longCastle[0]) finalhash ^= zobristCastleL[0];
+    if (longCastle[1]) finalhash ^= zobristCastleL[1];
+
+
+    return finalhash;
 }
 
 void board::updateHash(int index, int8_t oldPiece, int8_t newPiece){
@@ -41,7 +47,6 @@ struct ttentry {
     int16_t depth; 
     move tableMove;
     int8_t bound;
-    bool pv;
 };
 
 const int8_t LOWERBOUND = -1, EXACT = 0, UPPERBOUND = 1;
@@ -56,14 +61,9 @@ ttentry* tableget(uint64_t key) {
     return nullptr;
 }
 
-void tableset(uint64_t key, move m, int16_t depth, int16_t score, int8_t bound, bool pv) {
+void tableset(uint64_t key, move m, int16_t depth, int16_t score, int8_t bound) {
     ttentry* e = &ttable[key % tsize];
-    int storeddepth = e->depth << e->pv;
-    int compdepth = (depth << pv) + 2 + (depth/7);
-    if (storeddepth > compdepth) {
-        if (rng(mt) % 3 > 0) return; 
-    }
-    ttable[key % tsize] = ttentry{key, score, depth, m, bound, pv};
+    ttable[key % tsize] = ttentry{key, score, depth, m, bound};
 }
 
 void printpv(board* b){
