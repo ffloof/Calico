@@ -1,6 +1,6 @@
 # Calico
 
-This was my original chess engine with a strength of about 3100 elo, currently I am working on a new minimalistic engine [Tabby](https://github.com/ffloof/Tabby/). It aims to play at a superhuman level in as few lines of clean code as possible (currently around ~2550 elo and 850 LOC).
+This was my original chess engine with a strength of about 3100 elo, it supports the standard UCI chess engine protocol, and so any chess gui should be able to run it. Currently I am working on a new minimalistic engine [Tabby](https://github.com/ffloof/Tabby/). It aims to play at a superhuman level in as few lines of clean code as possible (currently around ~2550 elo and 850 LOC).
 
 Calico originally started out as a way to play with Monte Carlo Tree Search, and to learn the Go programming language which I am quite fond of, however since then I moved to a more traditional C++ engine with AlphaBeta style search for the engine. It includes the following features...
 
@@ -20,6 +20,7 @@ Calico originally started out as a way to play with Monte Carlo Tree Search, and
 - [Quiescence Search](https://www.chessprogramming.org/Quiescence_Search)
 - [Countermove Heuristic](https://www.chessprogramming.org/Countermove_Heuristic)
 - [Killer Move Heuristic](https://www.chessprogramming.org/Killer_Heuristic)
+- [UCI Chess Interface](https://www.chessprogramming.org/UCI)
 - And many more that I have probably forgotten...
 
 ---
