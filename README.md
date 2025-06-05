@@ -1,5 +1,33 @@
 # Calico
 
+This was my original chess engine with a strength of about 3100 elo, currently I am working on a new minimalistic engine [Tabby](https://github.com/ffloof/Tabby/). It aims to play at a superhuman level in as few lines of clean code as possible (currently around ~2550 elo and 850 LOC).
+
+Calico originally started out as a way to play with Monte Carlo Tree Search, however since then I moved to a more traditional Alphabeta style search for the engine. It includes the following features...
+
+- [Efficiently Update Neural Networks (NNUE)](https://www.chessprogramming.org/NNUE)
+- [Transposition Table w/ Zobrist Hashing](https://www.chessprogramming.org/Transposition_Table)
+- [Principal Variation Search](https://www.chessprogramming.org/Principal_Variation_Search)
+- [Null Move Pruning](https://www.chessprogramming.org/Null_Move_Pruning)
+- [Reverse Futility Pruning](https://www.chessprogramming.org/Reverse_Futility_Pruning)
+- [Late Move Pruning]
+- [History Heuristic](https://www.chessprogramming.org/History_Heuristic)
+- [Late Move Reductions](https://www.chessprogramming.org/Late_Move_Reductions)
+- [Check Extensions](https://www.chessprogramming.org/Check_Extensions)
+- [MVVLVA Capture Move Ordering](https://www.chessprogramming.org/MVV-LVA)
+- [Aspiration Windows](https://www.chessprogramming.org/Aspiration_Windows)
+- [Iterative Deepening](https://www.chessprogramming.org/Iterative_Deepening)
+- [Internal Iterative Reductions](https://www.chessprogramming.org/Internal_Iterative_Reductions)
+- [Quiescence Search](https://www.chessprogramming.org/Quiescence_Search)
+- [Countermove Heuristic](https://www.chessprogramming.org/Countermove_Heuristic)
+- [Killer Move Heuristic](https://www.chessprogramming.org/Killer_Heuristic)
+- And many more that I have probably forgotten...
+
+---
+
+Some random notes...
+
+https://www.computerchess.org.uk/ccrl/404/
+
 Blitz
 2900 = ice4/4ku
 3000 = PESTO
