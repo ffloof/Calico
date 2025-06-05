@@ -2,7 +2,7 @@
 
 This was my original chess engine with a strength of about 3100 elo, currently I am working on a new minimalistic engine [Tabby](https://github.com/ffloof/Tabby/). It aims to play at a superhuman level in as few lines of clean code as possible (currently around ~2550 elo and 850 LOC).
 
-Calico originally started out as a way to play with Monte Carlo Tree Search, however since then I moved to a more traditional Alphabeta style search for the engine. It includes the following features...
+Calico originally started out as a way to play with Monte Carlo Tree Search, and to learn the Go programming language which I am quite fond of, however since then I moved to a more traditional C++ engine with AlphaBeta style search for the engine. It includes the following features...
 
 - [Efficiently Update Neural Networks (NNUE)](https://www.chessprogramming.org/NNUE)
 - [Transposition Table w/ Zobrist Hashing](https://www.chessprogramming.org/Transposition_Table)
